@@ -1,5 +1,4 @@
 import { Info } from "lucide-react";
-import { DeployButton } from "./deploy-button";
 import { Alert, AlertDescription } from "./ui/alert";
 import Link from "next/link";
 
@@ -28,9 +27,6 @@ export const ProjectInfo = () => {
             CB Insights
           </Link>
           .
-          <div className="mt-4 sm:hidden">
-            <DeployButton />
-          </div>
         </AlertDescription>
       </Alert>
     </div>

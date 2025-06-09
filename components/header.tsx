@@ -1,5 +1,4 @@
 import { Moon, Sun } from "lucide-react";
-import { DeployButton } from "./deploy-button";
 import { Button } from "./ui/button";
 import { useTheme } from "next-themes";
 
@@ -27,9 +26,6 @@ export const Header = ({ handleClear }: { handleClear: () => void }) => {
           )}
           <span className="sr-only">Toggle theme</span>
         </Button>
-        <div className="hidden sm:block">
-          <DeployButton />
-        </div>
       </div>
     </div>
   );

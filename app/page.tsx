@@ -116,7 +116,7 @@ export default function Page() {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       layout
-                      className="sm:h-full min-h-[400px] flex flex-col"
+                      className="sm:h-full min-h-[400px] flex flex-col relative"
                     >
                       {activeQuery.length > 0 && (
                         <QueryViewer
@@ -125,7 +125,7 @@ export default function Page() {
                         />
                       )}
                       {loading ? (
-                        <div className="h-full absolute bg-background/50 w-full flex flex-col items-center justify-center space-y-4">
+                        <div className="h-full absolute inset-0 bg-background/50 w-full flex flex-col items-center justify-center space-y-4">
                           <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
                           <p className="text-foreground">
                             {loadingStep === 1
