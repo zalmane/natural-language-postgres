@@ -1,16 +1,21 @@
 "use server";
 
 import { Config, configSchema, explanationsSchema, Result } from "@/lib/types";
-import { openai } from "@ai-sdk/openai";
+import Anthropic from '@anthropic-ai/sdk';
 import { query } from "@/lib/db";
 import { generateObject } from "ai";
 import { z } from "zod";
 
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
 export const generateQuery = async (input: string) => {
   "use server";
   try {
-    const result = await generateObject({
-      model: openai("gpt-4o"),
+    const message = await anthropic.messages.create({
+      model: "claude-3-opus-20240229",
+      max_tokens: 1000,
       system: `You are a SQL (postgres) and data visualization expert. Your job is to help the user write a SQL query to retrieve the data they need. The table schema is as follows:
 
       unicorns (
@@ -51,13 +56,18 @@ export const generateQuery = async (input: string) => {
     When searching for UK or USA, write out United Kingdom or United States respectively.
 
     EVERY QUERY SHOULD RETURN QUANTITATIVE DATA THAT CAN BE PLOTTED ON A CHART! There should always be at least two columns. If the user asks for a single column, return the column and the count of the column. If the user asks for a rate, return the rate as a decimal. For example, 0.1 would be 10%.
-    `,
-      prompt: `Generate the query necessary to retrieve the data the user wants: ${input}`,
-      schema: z.object({
-        query: z.string(),
-      }),
+
+    Return ONLY the SQL query, nothing else.`,
+      messages: [
+        {
+          role: "user",
+          content: `Generate the query necessary to retrieve the data the user wants: ${input}`
+        }
+      ]
     });
-    return result.object.query;
+
+    const query = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+    return query;
   } catch (e) {
     console.error(e);
     throw new Error("Failed to generate query");
@@ -103,11 +113,9 @@ export const runGenerateSQLQuery = async (sqlQuery: string) => {
 export const explainQuery = async (input: string, sqlQuery: string) => {
   "use server";
   try {
-    const result = await generateObject({
-      model: openai("gpt-4o"),
-      schema: z.object({
-        explanations: explanationsSchema,
-      }),
+    const message = await anthropic.messages.create({
+      model: "claude-3-opus-20240229",
+      max_tokens: 1000,
       system: `You are a SQL (postgres) expert. Your job is to explain to the user write a SQL query you wrote to retrieve the data they asked for. The table schema is as follows:
     unicorns (
       id SERIAL PRIMARY KEY,
@@ -123,16 +131,23 @@ export const explainQuery = async (input: string, sqlQuery: string) => {
     When you explain you must take a section of the query, and then explain it. Each "section" should be unique. So in a query like: "SELECT * FROM unicorns limit 20", the sections could be "SELECT *", "FROM UNICORNS", "LIMIT 20".
     If a section doesnt have any explanation, include it, but leave the explanation empty.
 
-    `,
-      prompt: `Explain the SQL query you generated to retrieve the data the user wanted. Assume the user is not an expert in SQL. Break down the query into steps. Be concise.
+    Return the response in JSON format with an array of objects containing "section" and "explanation" fields.`,
+      messages: [
+        {
+          role: "user",
+          content: `Explain the SQL query you generated to retrieve the data the user wanted. Assume the user is not an expert in SQL. Break down the query into steps. Be concise.
 
-      User Query:
-      ${input}
+          User Query:
+          ${input}
 
-      Generated SQL Query:
-      ${sqlQuery}`,
+          Generated SQL Query:
+          ${sqlQuery}`
+        }
+      ]
     });
-    return result.object;
+
+    const response = message.content[0].type === 'text' ? JSON.parse(message.content[0].text) : [];
+    return { explanations: response };
   } catch (e) {
     console.error(e);
     throw new Error("Failed to generate query");
@@ -144,46 +159,48 @@ export const generateChartConfig = async (
   userQuery: string,
 ) => {
   "use server";
-  const system = `You are a data visualization expert. `;
-
   try {
-    const { object: config } = await generateObject({
-      model: openai("gpt-4o"),
-      system,
-      prompt: `Given the following data from a SQL query result, generate the chart config that best visualises the data and answers the users query.
-      For multiple groups use multi-lines.
+    const message = await anthropic.messages.create({
+      model: "claude-3-opus-20240229",
+      max_tokens: 1000,
+      system: `You are a data visualization expert. Return the response in JSON format matching the following schema:
+      {
+        "description": "string",
+        "takeaway": "string",
+        "type": "bar" | "line" | "area" | "pie",
+        "title": "string",
+        "xKey": "string",
+        "yKeys": string[],
+        "multipleLines": boolean,
+        "measurementColumn": string,
+        "lineCategories": string[],
+        "legend": boolean
+      }`,
+      messages: [
+        {
+          role: "user",
+          content: `Given the following data from a SQL query result, generate the chart config that best visualises the data and answers the users query.
+          For multiple groups use multi-lines.
 
-      Here is an example complete config:
-      export const chartConfig = {
-        type: "pie",
-        xKey: "month",
-        yKeys: ["sales", "profit", "expenses"],
-        colors: {
-          sales: "#4CAF50",    // Green for sales
-          profit: "#2196F3",   // Blue for profit
-          expenses: "#F44336"  // Red for expenses
-        },
-        legend: true
-      }
+          User Query:
+          ${userQuery}
 
-      User Query:
-      ${userQuery}
-
-      Data:
-      ${JSON.stringify(results, null, 2)}`,
-      schema: configSchema,
+          Data:
+          ${JSON.stringify(results, null, 2)}`
+        }
+      ]
     });
 
+    const config = message.content[0].type === 'text' ? JSON.parse(message.content[0].text) : {};
     const colors: Record<string, string> = {};
-    config.yKeys.forEach((key, index) => {
+    config.yKeys.forEach((key: string, index: number) => {
       colors[key] = `hsl(var(--chart-${index + 1}))`;
     });
 
     const updatedConfig: Config = { ...config, colors };
     return { config: updatedConfig };
   } catch (e) {
-    // @ts-expect-errore
-    console.error(e.message);
+    console.error(e);
     throw new Error("Failed to generate chart suggestion");
   }
 };
