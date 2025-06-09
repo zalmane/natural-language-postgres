@@ -2,7 +2,7 @@
 
 import { Config, configSchema, explanationsSchema, Result } from "@/lib/types";
 import { openai } from "@ai-sdk/openai";
-import { sql } from "@vercel/postgres";
+import { query } from "@/lib/db";
 import { generateObject } from "ai";
 import { z } from "zod";
 
@@ -64,27 +64,27 @@ export const generateQuery = async (input: string) => {
   }
 };
 
-export const runGenerateSQLQuery = async (query: string) => {
+export const runGenerateSQLQuery = async (sqlQuery: string) => {
   "use server";
   // Check if the query is a SELECT statement
   if (
-    !query.trim().toLowerCase().startsWith("select") ||
-    query.trim().toLowerCase().includes("drop") ||
-    query.trim().toLowerCase().includes("delete") ||
-    query.trim().toLowerCase().includes("insert") ||
-    query.trim().toLowerCase().includes("update") ||
-    query.trim().toLowerCase().includes("alter") ||
-    query.trim().toLowerCase().includes("truncate") ||
-    query.trim().toLowerCase().includes("create") ||
-    query.trim().toLowerCase().includes("grant") ||
-    query.trim().toLowerCase().includes("revoke")
+    !sqlQuery.trim().toLowerCase().startsWith("select") ||
+    sqlQuery.trim().toLowerCase().includes("drop") ||
+    sqlQuery.trim().toLowerCase().includes("delete") ||
+    sqlQuery.trim().toLowerCase().includes("insert") ||
+    sqlQuery.trim().toLowerCase().includes("update") ||
+    sqlQuery.trim().toLowerCase().includes("alter") ||
+    sqlQuery.trim().toLowerCase().includes("truncate") ||
+    sqlQuery.trim().toLowerCase().includes("create") ||
+    sqlQuery.trim().toLowerCase().includes("grant") ||
+    sqlQuery.trim().toLowerCase().includes("revoke")
   ) {
     throw new Error("Only SELECT queries are allowed");
   }
 
   let data: any;
   try {
-    data = await sql.query(query);
+    data = await query(sqlQuery);
   } catch (e: any) {
     if (e.message.includes('relation "unicorns" does not exist')) {
       console.log(
