@@ -29,6 +29,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "lib/seed.ts"
-  ],
+, "test.js"  ],
   "exclude": ["node_modules"]
 }

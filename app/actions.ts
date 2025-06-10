@@ -1,189 +1,260 @@
 "use server";
 
 import { Config, configSchema, explanationsSchema, Result } from "@/lib/types";
-import { openai } from "@ai-sdk/openai";
 import { query } from "@/lib/db";
-import { generateObject } from "ai";
 import { z } from "zod";
+import { searchEntity } from "@/lib/entity-search";
+import { anthropic } from "@/lib/anthropic";
 
-export const generateQuery = async (input: string) => {
-  "use server";
+interface SearchEntityInput {
+  description: string;
+}
+
+interface QueryResponse {
+  query: string;
+  reasoning: string[];
+}
+
+export async function generateQuery(question: string): Promise<QueryResponse> {
+  const reasoning: string[] = [];
+  let finalQuery = '';
+
   try {
-    const result = await generateObject({
-      model: openai("gpt-4o"),
-      system: `You are a SQL (postgres) and data visualization expert. Your job is to help the user write a SQL query to retrieve the data they need. The table schema is as follows:
+    const stream = await anthropic.messages.create({
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 1000,
+      stream: true,
+      tools: [{
+        name: "searchEntity",
+        description: "Search for a database table based on a description",
+        input_schema: {
+          type: "object",
+          properties: {
+            description: {
+              type: "string",
+              description: "Description of the table you're looking for"
+            }
+          },
+          required: ["description"]
+        }
+      }],
+      messages: [
+        {
+          role: "user",
+          content: `You are a SQL expert. You have access to a tool called 'searchEntity' that can help you find the right table to query. The tool takes a description and returns a table name and confidence score.
 
-      unicorns (
-      id SERIAL PRIMARY KEY,
-      company VARCHAR(255) NOT NULL UNIQUE,
-      valuation DECIMAL(10, 2) NOT NULL,
-      date_joined DATE,
-      country VARCHAR(255) NOT NULL,
-      city VARCHAR(255) NOT NULL,
-      industry VARCHAR(255) NOT NULL,
-      select_investors TEXT NOT NULL
-    );
+Question: ${question}
 
-    Only retrieval queries are allowed.
+Instructions:
+- First, decide if you need to use the searchEntity tool to find the right table
+- If you do, use the tool and wait for the response
+- Then generate a SQL query using the table name
+- Use ILIKE for string fields
+- Return quantitative data suitable for charting
+- Use proper SQL syntax
+- When you provide the SQL query, wrap it in a \`\`\`sql code block
+- The table has the following columns:
+  - company: string
+  - valuation: number
+  - date_joined: date
+  - country: string
+  - city: string
+  - industry: string
+  - select_investors: string
 
-    For things like industry, company names and other string fields, use the ILIKE operator and convert both the search term and the field to lowercase using LOWER() function. For example: LOWER(industry) ILIKE LOWER('%search_term%').
-
-    Note: select_investors is a comma-separated list of investors. Trim whitespace to ensure you're grouping properly. Note, some fields may be null or have only one value.
-    When answering questions about a specific field, ensure you are selecting the identifying column (ie. what is Vercel's valuation would select company and valuation').
-
-    The industries available are:
-    - healthcare & life sciences
-    - consumer & retail
-    - financial services
-    - enterprise tech
-    - insurance
-    - media & entertainment
-    - industrials
-    - health
-
-    If the user asks for a category that is not in the list, infer based on the list above.
-
-    Note: valuation is in billions of dollars so 10b would be 10.0.
-    Note: if the user asks for a rate, return it as a decimal. For example, 0.1 would be 10%.
-
-    If the user asks for 'over time' data, return by year.
-
-    When searching for UK or USA, write out United Kingdom or United States respectively.
-
-    EVERY QUERY SHOULD RETURN QUANTITATIVE DATA THAT CAN BE PLOTTED ON A CHART! There should always be at least two columns. If the user asks for a single column, return the column and the count of the column. If the user asks for a rate, return the rate as a decimal. For example, 0.1 would be 10%.
-    `,
-      prompt: `Generate the query necessary to retrieve the data the user wants: ${input}`,
-      schema: z.object({
-        query: z.string(),
-      }),
+Please explain your reasoning as you go. Start with "Let me think about this..." and explain your thought process.`
+        }
+      ]
     });
-    return result.object.query;
-  } catch (e) {
-    console.error(e);
-    throw new Error("Failed to generate query");
-  }
-};
 
-export const runGenerateSQLQuery = async (sqlQuery: string) => {
-  "use server";
-  // Check if the query is a SELECT statement
-  if (
-    !sqlQuery.trim().toLowerCase().startsWith("select") ||
-    sqlQuery.trim().toLowerCase().includes("drop") ||
-    sqlQuery.trim().toLowerCase().includes("delete") ||
-    sqlQuery.trim().toLowerCase().includes("insert") ||
-    sqlQuery.trim().toLowerCase().includes("update") ||
-    sqlQuery.trim().toLowerCase().includes("alter") ||
-    sqlQuery.trim().toLowerCase().includes("truncate") ||
-    sqlQuery.trim().toLowerCase().includes("create") ||
-    sqlQuery.trim().toLowerCase().includes("grant") ||
-    sqlQuery.trim().toLowerCase().includes("revoke")
-  ) {
-    throw new Error("Only SELECT queries are allowed");
-  }
+    // Process the stream
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+        const text = chunk.delta.text;
+        // Extract SQL query from code block if present
+        const sqlBlockMatch = text.match(/```sql\n([\s\S]*?)```/);
+        if (sqlBlockMatch) {
+          finalQuery = sqlBlockMatch[1].trim();
+        } else {
+          // Add non-SQL text to reasoning
+          reasoning.push(text);
+        }
+      } else if (chunk.type === 'message_delta' && (chunk.delta as any).tool_use) {
+        const toolUse = (chunk.delta as any).tool_use;
+        if (toolUse.name === 'searchEntity') {
+          const input = toolUse.input as SearchEntityInput;
+          reasoning.push(`I'll use the searchEntity tool to find the right table. Looking for: ${input.description}`);
+          
+          const entityResult = await searchEntity(input.description);
+          reasoning.push(`Found table: ${entityResult.tableName} (confidence: ${entityResult.confidence})`);
+          
+          // Send the table name back to Claude
+          const secondStream = await anthropic.messages.create({
+            model: "claude-3-7-sonnet-20250219",
+            max_tokens: 1000,
+            stream: true,
+            messages: [
+              {
+                role: "user",
+                content: `You are a SQL expert. Generate a SQL query based on the following question. The query should be compatible with PostgreSQL and use the ${entityResult.tableName} table.
 
-  let data: any;
-  try {
-    data = await query(sqlQuery);
-  } catch (e: any) {
-    if (e.message.includes('relation "unicorns" does not exist')) {
-      console.log(
-        "Table does not exist, creating and seeding it with dummy data now...",
-      );
-      // throw error
-      throw Error("Table does not exist");
-    } else {
-      throw e;
-    }
-  }
+Question: ${question}
 
-  return data.rows as Result[];
-};
+Instructions:
+- Use ILIKE for string fields
+- Return quantitative data suitable for charting
+- Use proper SQL syntax
+- When you provide the SQL query, wrap it in a \`\`\`sql code block
+- The table has the following columns:
+  - company: string
+  - valuation: number
+  - date_joined: date
+  - country: string
+  - city: string
+  - industry: string
+  - select_investors: string
 
-export const explainQuery = async (input: string, sqlQuery: string) => {
-  "use server";
-  try {
-    const result = await generateObject({
-      model: openai("gpt-4o"),
-      schema: z.object({
-        explanations: explanationsSchema,
-      }),
-      system: `You are a SQL (postgres) expert. Your job is to explain to the user write a SQL query you wrote to retrieve the data they asked for. The table schema is as follows:
-    unicorns (
-      id SERIAL PRIMARY KEY,
-      company VARCHAR(255) NOT NULL UNIQUE,
-      valuation DECIMAL(10, 2) NOT NULL,
-      date_joined DATE,
-      country VARCHAR(255) NOT NULL,
-      city VARCHAR(255) NOT NULL,
-      industry VARCHAR(255) NOT NULL,
-      select_investors TEXT NOT NULL
-    );
+Please explain your reasoning as you go. Start with "Now I'll generate the SQL query..." and explain your thought process.`
+              }
+            ]
+          });
 
-    When you explain you must take a section of the query, and then explain it. Each "section" should be unique. So in a query like: "SELECT * FROM unicorns limit 20", the sections could be "SELECT *", "FROM UNICORNS", "LIMIT 20".
-    If a section doesnt have any explanation, include it, but leave the explanation empty.
-
-    `,
-      prompt: `Explain the SQL query you generated to retrieve the data the user wanted. Assume the user is not an expert in SQL. Break down the query into steps. Be concise.
-
-      User Query:
-      ${input}
-
-      Generated SQL Query:
-      ${sqlQuery}`,
-    });
-    return result.object;
-  } catch (e) {
-    console.error(e);
-    throw new Error("Failed to generate query");
-  }
-};
-
-export const generateChartConfig = async (
-  results: Result[],
-  userQuery: string,
-) => {
-  "use server";
-  const system = `You are a data visualization expert. `;
-
-  try {
-    const { object: config } = await generateObject({
-      model: openai("gpt-4o"),
-      system,
-      prompt: `Given the following data from a SQL query result, generate the chart config that best visualises the data and answers the users query.
-      For multiple groups use multi-lines.
-
-      Here is an example complete config:
-      export const chartConfig = {
-        type: "pie",
-        xKey: "month",
-        yKeys: ["sales", "profit", "expenses"],
-        colors: {
-          sales: "#4CAF50",    // Green for sales
-          profit: "#2196F3",   // Blue for profit
-          expenses: "#F44336"  // Red for expenses
-        },
-        legend: true
+          // Process the second stream
+          for await (const secondChunk of secondStream) {
+            if (secondChunk.type === 'content_block_delta' && secondChunk.delta.type === 'text_delta') {
+              const text = secondChunk.delta.text;
+              // Extract SQL query from code block if present
+              const sqlBlockMatch = text.match(/```sql\n([\s\S]*?)```/);
+              if (sqlBlockMatch) {
+                finalQuery = sqlBlockMatch[1].trim();
+                console.log('Found SQL query in second stream:', finalQuery);
+              } else if (!text.includes('```')) {
+                // Only add non-SQL text to reasoning if it's not part of a code block
+                reasoning.push(text);
+              }
+            }
+          }
+        }
       }
+    }
 
-      User Query:
-      ${userQuery}
+    // Filter out empty lines from reasoning
+    const filteredReasoning = reasoning.filter(line => line.trim().length > 0);
 
-      Data:
-      ${JSON.stringify(results, null, 2)}`,
-      schema: configSchema,
-    });
+    console.log('Final query:', finalQuery);
+    console.log('Reasoning steps:', filteredReasoning);
 
-    const colors: Record<string, string> = {};
-    config.yKeys.forEach((key, index) => {
-      colors[key] = `hsl(var(--chart-${index + 1}))`;
-    });
-
-    const updatedConfig: Config = { ...config, colors };
-    return { config: updatedConfig };
-  } catch (e) {
-    // @ts-expect-errore
-    console.error(e.message);
-    throw new Error("Failed to generate chart suggestion");
+    return {
+      query: finalQuery,
+      reasoning: filteredReasoning
+    };
+  } catch (error: any) {
+    console.error("Error generating query:", error);
+    return {
+      query: '',
+      reasoning: [...reasoning, `Error: ${error?.message || 'Unknown error occurred'}`]
+    };
   }
-};
+}
+
+export async function runGenerateSQLQuery(sqlQuery: string) {
+  try {
+    if (!sqlQuery.toLowerCase().startsWith("select") && !sqlQuery.toLowerCase().startsWith("with")) {
+      throw new Error("Only SELECT queries are allowed");
+    }
+    const results = await query(sqlQuery);
+    // Convert the results to a plain object
+    return {
+      rows: results.rows.map(row => ({ ...row })),
+      rowCount: results.rowCount,
+      fields: results.fields.map(field => ({
+        name: field.name,
+        dataTypeID: field.dataTypeID
+      }))
+    };
+  } catch (error: any) {
+    console.error("Error running query:", error);
+    throw new Error(error?.message || 'Failed to execute query');
+  }
+}
+
+export async function explainQuery(question: string, sqlQuery: string) {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: `You are a SQL expert. Explain the following SQL query in a user-friendly way. Break it down into sections.
+
+Question: ${question}
+
+SQL Query: ${sqlQuery}
+
+Instructions:
+- Break down the query into logical sections
+- Explain each section in simple terms
+- Focus on how the query answers the user's question
+- Return a JSON array of objects with "section" and "explanation" fields
+- Only return the JSON without any additional text`,
+        },
+      ],
+    });
+
+    if (response.content[0].type === 'text') {
+      const explanations = JSON.parse(response.content[0].text.trim());
+      return { explanations };
+    }
+    return { explanations: [] };
+  } catch (error: any) {
+    console.error("Error explaining query:", error);
+    return { explanations: [] };
+  }
+}
+
+export async function generateChartConfig(results: Result[], question: string) {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: `You are a data visualization expert. Generate a chart configuration based on the following data and question. The configuration should be in JSON format.
+
+Question: ${question}
+
+Data: ${JSON.stringify(results)}
+
+Instructions:
+- Return a JSON object with the following structure:
+{
+  "type": "line" | "bar" | "pie" | "scatter",
+  "xAxis": {
+    "dataKey": string,
+    "label": string
+  },
+  "yAxis": {
+    "dataKey": string,
+    "label": string
+  },
+  "title": string
+}
+- Choose the most appropriate chart type based on the data and question
+- Use meaningful labels for axes
+- Only return the JSON configuration without any additional text`,
+        },
+      ],
+    });
+
+    if (response.content[0].type === 'text') {
+      const config = JSON.parse(response.content[0].text.trim());
+      return { config };
+    }
+    return { config: {} };
+  } catch (error: any) {
+    console.error("Error generating chart config:", error);
+    return { config: {} };
+  }
+}

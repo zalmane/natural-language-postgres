@@ -11,7 +11,9 @@ export type Unicorn = {
   select_investors: string;
 };
 
-export type Result = Record<string, string | number>;
+export interface Result {
+  [key: string]: any;
+}
 
 export const explanationSchema = z.object({
   section: z.string(),
@@ -19,7 +21,10 @@ export const explanationSchema = z.object({
 });
 export const explanationsSchema = z.array(explanationSchema);
 
-export type QueryExplanation = z.infer<typeof explanationSchema>;
+export interface QueryExplanation {
+  section: string;
+  explanation: string;
+}
 
 // Define the schema for chart configuration
 export const configSchema = z
@@ -48,5 +53,15 @@ export const configSchema = z
   })
   .describe("Chart configuration object");
 
-
-export type Config = z.infer<typeof configSchema>;
+export interface Config {
+  type: "line" | "bar" | "pie" | "scatter";
+  xAxis: {
+    dataKey: string;
+    label: string;
+  };
+  yAxis: {
+    dataKey: string;
+    label: string;
+  };
+  title: string;
+}
