@@ -5,8 +5,9 @@ import { Message } from "ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Send } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { UserMessage, AssistantMessage, ReasoningMessage, ToolInvocationMessage } from "./messages";
+import { FishLogo } from "./FishLogo";
 
 function splitMessagesByUser(messages: Message[]) {
   const groups: Message[][] = [];
@@ -81,6 +82,7 @@ export default function ChatPage() {
   }, [messages]);
 
   const messageGroups = splitMessagesByUser(messages);
+  const fishLogo = useMemo(() => <FishLogo animated={isLoading} />, [isLoading]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -109,7 +111,7 @@ export default function ChatPage() {
                           case "text":
                             return message.role === "user"
                               ? <UserMessage key={index} text={part.text ?? ""} />
-                              : <AssistantMessage key={index} text={part.text ?? ""} />;
+                              : <AssistantMessage key={index} text={part.text ?? ""} isLoading={isLoading} />;
                           case "reasoning": {
                             const isComplete = Boolean(message.parts && message.parts.length > index + 1);
                             const isExpanded = expandedReasonings.has(message.id);
@@ -138,13 +140,17 @@ export default function ChatPage() {
                           {message.content}
                         </div>
                       )}
+
                     </div>
                   </div>
                 ))}
+                {groupIdx === messageGroups.length - 1 ? fishLogo : null}
               </div>
             ))}
+
           </div>
-        </div>
+          </div>
+
       </div>
       {/* Input */}
       <div className="border-t">

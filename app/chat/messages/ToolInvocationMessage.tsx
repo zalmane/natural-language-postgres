@@ -15,9 +15,8 @@ export function ToolInvocationMessage({ toolInvocation }: { toolInvocation: any 
       onClick={() => setExpanded((prev) => !prev)}
     >
       <CardContent className="p-4">
-        <div className="flex justify-between items-center">
-          <span className="flex items-center gap-2">
-            {!isResult && <Loader2 className="h-4 w-4 animate-spin" />}
+      <div className={cn("flex justify-between items-center", !isResult && "animate-pulse")}> 
+      <span className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               Tool invocation: {toolInvocation.toolName}
             </span>

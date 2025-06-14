@@ -20,7 +20,6 @@ export function ReasoningMessage({
       <CardContent className="p-4">
         <div className={cn("flex justify-between items-center", !isComplete && "animate-pulse")}> 
           <span className="flex items-center">
-            {!isComplete && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             <span className="text-sm text-muted-foreground">
               {`Thinking: ${summary}`}
             </span>

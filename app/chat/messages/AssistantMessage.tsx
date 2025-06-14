@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { FishLogo } from "../FishLogo";
 import mermaid from "mermaid";
 
 // Helper to split text into normal and mermaid segments
@@ -21,7 +22,7 @@ function parseMermaidSegments(text: string) {
   return segments;
 }
 
-export function AssistantMessage({ text, children }: { text: string, children?: React.ReactNode }) {
+export function AssistantMessage({ text, isLoading, children }: { text: string, isLoading: boolean, children?: React.ReactNode }) {
   const mermaidRefs = useRef<(HTMLDivElement | null)[]>([]);
   const segments = parseMermaidSegments(text);
 
@@ -40,16 +41,21 @@ export function AssistantMessage({ text, children }: { text: string, children?: 
     // eslint-disable-next-line
   }, [text]);
 
+
+  
   return (
     <div className="flex flex-col gap-2">
       {segments.map((segment, i) =>
         segment.type === "mermaid" ? (
-          <div key={i} ref={el => (mermaidRefs.current[i] = el)} className="my-2" />
+          <div key={i} ref={el => { mermaidRefs.current[i] = el; }} className="my-2" />
         ) : (
-          <div key={i} className="whitespace-pre-wrap">{segment.content}</div>
+          <div key={i} className="whitespace-pre-wrap flex items-top">
+            {segment.content}
+          </div>
         )
       )}
       {children}
-    </div>
+ 
+      </div>
   );
-} 
+}

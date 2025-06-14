@@ -27,15 +27,17 @@ export async function POST(req: Request) {
       model: new MockLanguageModelV1({
         doStream: async () => ({
           stream: simulateReadableStream({
-            initialDelayInMs: 1000, // Delay before the first chunk
-            chunkDelayInMs: 100, // Delay between chunks
+            initialDelayInMs: 500, // Delay before the first chunk
+            chunkDelayInMs: 400, // Delay between chunks
                 chunks: [
                 { type: 'reasoning', textDelta: 'Let me break down the logic for you...' },
                 { type: 'reasoning', textDelta: 'That\'s it. I\'m done.' },
                 { type: 'tool-call-delta',toolCallId:"call-456",toolName:"getWeatherInformation",argsTextDelta:"Hello"},
                 { type: 'tool-call',toolCallId:"call-456",toolName:"getWeatherInformation",args:"{}"},
-                    { type: 'text-delta', textDelta: 'Hello second word' },
-                  { type: 'text-delta', textDelta: ', ' },
+                    { type: 'text-delta', textDelta: 'Hello ' },
+                    { type: 'text-delta', textDelta: 'second' },
+                    { type: 'text-delta', textDelta: 'third' },
+                    { type: 'text-delta', textDelta: ', ' },
                 { type: 'text-delta', textDelta: `world!` },
                 { type: 'text-delta', textDelta: '```mermaid\ngraph TD\nA --> B\n```' },
               {
