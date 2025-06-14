@@ -40,8 +40,7 @@ export default function ChatPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastUserMessageRef = useRef<HTMLDivElement | null>(null);
-  const containerVhRef = useRef(null);
-
+  
   const toggleReasoning = (messageId: string) => {
     setExpandedReasonings(prev => {
       const next = new Set(prev);

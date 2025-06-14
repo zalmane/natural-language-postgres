@@ -1,7 +1,6 @@
 import { streamText, simulateReadableStream } from 'ai';
 import { MockLanguageModelV1 } from 'ai/test';
 import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
-import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
 import { z } from 'zod';
 
 export async function POST(req: Request) {
@@ -28,7 +27,7 @@ export async function POST(req: Request) {
         doStream: async () => ({
           stream: simulateReadableStream({
             initialDelayInMs: 500, // Delay before the first chunk
-            chunkDelayInMs: 400, // Delay between chunks
+            chunkDelayInMs: 1400, // Delay between chunks
                 chunks: [
                 { type: 'reasoning', textDelta: 'Let me break down the logic for you...' },
                 { type: 'reasoning', textDelta: 'That\'s it. I\'m done.' },
