@@ -4,7 +4,7 @@ import { useChat } from "ai/react";
 import { Message } from "ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { UserMessage, AssistantMessage, ReasoningMessage, ToolInvocationMessage } from "./messages";
 import { FishLogo } from "./FishLogo";
@@ -26,6 +26,8 @@ function splitMessagesByUser(messages: Message[]) {
 export default function ChatPage() {
   const [expandedReasonings, setExpandedReasonings] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [clickedButton, setClickedButton] = useState<string | null>(null);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
@@ -74,6 +76,18 @@ export default function ChatPage() {
     }
   };
 
+  const handleCopy = (messageId: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMessageId(messageId);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
+
+  const handleButtonClick = (buttonId: string, callback: () => void) => {
+    setClickedButton(buttonId);
+    callback();
+    setTimeout(() => setClickedButton(null), 200);
+  };
+
   useEffect(() => {
     if (lastUserMessageRef.current) {
       lastUserMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -90,7 +104,7 @@ export default function ChatPage() {
         <div className="flex flex-col flex-1 w-full max-w-[min(1200px,90vw)] mx-auto px-5 lg:max-w-[1000px] 2xl:max-w-[1200px]">
           <div className="flex flex-col flex-1 space-y-4 py-4">
             {messageGroups.map((group, groupIdx) => (
-              <div className="flex w-full gap-4 flex-col"
+              <div className="flex w-full pt-3 gap-4 flex-col"
                 key={groupIdx}
                 ref={
                   groupIdx === messageGroups.length - 1
@@ -143,7 +157,42 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ))}
-                {groupIdx === messageGroups.length - 1 ? fishLogo : null}
+                {groupIdx === messageGroups.length - 1 ? (
+                  <div className="flex items-center justify-between gap-2">
+                    {fishLogo}
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-6 w-6 transition-colors ${copiedMessageId === group[0].id ? 'text-blue-500' : ''}`}
+                        onClick={() => {
+                          const lastMessage = group[0];
+                          const textPart = lastMessage.parts?.find((p: any) => p.type === 'text');
+                          const text = textPart ? (textPart as any).text : lastMessage.content;
+                          handleButtonClick('copy', () => handleCopy(lastMessage.id, text));
+                        }}
+                      >
+                        <Copy className={`h-4 w-4 transition-transform ${clickedButton === 'copy' ? 'scale-110' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-6 w-6 transition-colors ${feedback[group[0].id] === 'up' ? 'text-green-500' : ''}`}
+                        onClick={() => handleButtonClick('up', () => handleFeedback(group[0].id, 'up'))}
+                      >
+                        <ThumbsUp className={`h-4 w-4 transition-transform ${clickedButton === 'up' ? 'scale-110' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-6 w-6 transition-colors ${feedback[group[0].id] === 'down' ? 'text-red-500' : ''}`}
+                        onClick={() => handleButtonClick('down', () => handleFeedback(group[0].id, 'down'))}
+                      >
+                        <ThumbsDown className={`h-4 w-4 transition-transform ${clickedButton === 'down' ? 'scale-110' : ''}`} />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ))}
 
