@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         doStream: async () => ({
           stream: simulateReadableStream({
             initialDelayInMs: 1000, // Delay before the first chunk
-            chunkDelayInMs: 1000, // Delay between chunks
+            chunkDelayInMs: 100, // Delay between chunks
                 chunks: [
                 { type: 'reasoning', textDelta: 'Let me break down the logic for you...' },
                 { type: 'reasoning', textDelta: 'That\'s it. I\'m done.' },
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
                     { type: 'text-delta', textDelta: 'Hello second word' },
                   { type: 'text-delta', textDelta: ', ' },
                 { type: 'text-delta', textDelta: `world!` },
+                { type: 'text-delta', textDelta: '```mermaid\ngraph TD\nA --> B\n```' },
               {
                 type: 'finish',
                 finishReason: 'stop',

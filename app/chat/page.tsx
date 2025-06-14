@@ -8,6 +8,19 @@ import { Loader2, Send } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { UserMessage, AssistantMessage, ReasoningMessage, ToolInvocationMessage } from "./messages";
 
+function splitMessagesByUser(messages: Message[]) {
+  const groups: Message[][] = [];
+  let current: Message[] = [];
+  messages.forEach((msg) => {
+    if (msg.role === "user" && current.length > 0) {
+      groups.push(current);
+      current = [];
+    }
+    current.push(msg);
+  });
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
 
 export default function ChatPage() {
   const [expandedReasonings, setExpandedReasonings] = useState<Set<string>>(new Set());
@@ -26,6 +39,7 @@ export default function ChatPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastUserMessageRef = useRef<HTMLDivElement | null>(null);
+  const containerVhRef = useRef(null);
 
   const toggleReasoning = (messageId: string) => {
     setExpandedReasonings(prev => {
@@ -60,54 +74,73 @@ export default function ChatPage() {
     }
   };
 
+  useEffect(() => {
+    if (lastUserMessageRef.current) {
+      lastUserMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [messages]);
+
+  const messageGroups = splitMessagesByUser(messages);
+
   return (
     <div className="flex flex-col h-screen">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
-        <div className="w-full max-w-[min(1200px,90vw)] mx-auto px-5 lg:max-w-[1000px] 2xl:max-w-[1200px]">
-          <div className="space-y-4 py-4">
-            {messages.map((message: Message, idx: number) => (
-              <div
-                key={message.id}
-                className="flex w-full gap-4"
-                ref={message.role === 'user' && idx === messages.length - 1 ? lastUserMessageRef : undefined}
-              >
-                <div className="flex flex-col gap-4 flex-1">
-                  {message.parts?.map((part: any, index: number) => {
-                    switch (part.type) {
-                      case "text":
-                        return message.role === "user"
-                          ? <UserMessage key={index} text={part.text ?? ""} />
-                          : <AssistantMessage key={index} text={part.text ?? ""} />;
-                      case "reasoning": {
-                        const isComplete = Boolean(message.parts && message.parts.length > index + 1);
-                        const isExpanded = expandedReasonings.has(message.id);
-                        // details may contain redacted, so filter for text
-                        const summary = Array.isArray(part.details) && part.details.length > 0 && 'text' in part.details[0]
-                          ? (part.details[0] as any).text?.split('.')[0] || 'Thinking...'
-                          : 'Thinking...';
-                        return (
-                          <ReasoningMessage
-                            key={index}
-                            isComplete={isComplete}
-                            isExpanded={isExpanded}
-                            summary={summary}
-                            details={Array.isArray(part.details) ? part.details.filter((d: any) => d.type === 'text') : []}
-                            onToggle={() => toggleReasoning(message.id)}
-                          />
-                        );
-                      }
-                      case "tool-invocation":
-                        return <ToolInvocationMessage key={index} toolInvocation={(part as any).toolInvocation} />;
-                      default:
-                        return null;
-                    }
-                  }) || (
-                    <div className="whitespace-pre-wrap">
-                      {message.content}
+      <div className="flex-1 flex flex-col overflow-y-auto" ref={scrollContainerRef}>
+        <div className="flex flex-col flex-1 w-full max-w-[min(1200px,90vw)] mx-auto px-5 lg:max-w-[1000px] 2xl:max-w-[1200px]">
+          <div className="flex flex-col flex-1 space-y-4 py-4">
+            {messageGroups.map((group, groupIdx) => (
+              <div className="flex w-full gap-4 flex-col"
+                key={groupIdx}
+                ref={
+                  groupIdx === messageGroups.length - 1
+                    ? lastUserMessageRef
+                    : undefined
+                }
+                style={groupIdx === messageGroups.length - 1 ? { minHeight: scrollContainerRef.current?.clientHeight } : undefined}
+                >
+                {group.map((message, idx) => (
+                  <div
+                    key={message.id}
+                    className="flex w-full gap-4"
+                  >
+                    <div className="flex flex-col gap-4 flex-1">
+                      {message.parts?.map((part: any, index: number) => {
+                        switch (part.type) {
+                          case "text":
+                            return message.role === "user"
+                              ? <UserMessage key={index} text={part.text ?? ""} />
+                              : <AssistantMessage key={index} text={part.text ?? ""} />;
+                          case "reasoning": {
+                            const isComplete = Boolean(message.parts && message.parts.length > index + 1);
+                            const isExpanded = expandedReasonings.has(message.id);
+                            // details may contain redacted, so filter for text
+                            const summary = Array.isArray(part.details) && part.details.length > 0 && 'text' in part.details[0]
+                              ? (part.details[0] as any).text?.split('.')[0] || 'Thinking...'
+                              : 'Thinking...';
+                            return (
+                              <ReasoningMessage
+                                key={index}
+                                isComplete={isComplete}
+                                isExpanded={isExpanded}
+                                summary={summary}
+                                details={Array.isArray(part.details) ? part.details.filter((d: any) => d.type === 'text') : []}
+                                onToggle={() => toggleReasoning(message.id)}
+                              />
+                            );
+                          }
+                          case "tool-invocation":
+                            return <ToolInvocationMessage key={index} toolInvocation={(part as any).toolInvocation} />;
+                          default:
+                            return null;
+                        }
+                      }) || (
+                        <div className="whitespace-pre-wrap">
+                          {message.content}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
