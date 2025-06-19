@@ -2,14 +2,10 @@
 
 import { useChat } from "ai/react";
 import { Message } from "ai";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2, Send, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
-import Sidebar from "./Sidebar";
 import { MessageGroup } from "./components/MessageGroup";
 import { ChatInput } from "./components/ChatInput";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 
 function splitMessagesByUser(messages: Message[]) {
   const groups: Message[][] = [];
@@ -27,21 +23,15 @@ function splitMessagesByUser(messages: Message[]) {
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [expandedReasonings, setExpandedReasonings] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [clickedButton, setClickedButton] = useState<string | null>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append } = useChat({
     api: "/api/chat",
-    initialMessages: searchParams.get('message') ? [
-      {
-        id: Date.now().toString(),
-        content: searchParams.get('message') || '',
-        role: 'user' as const,
-        createdAt: new Date()
-      }
-    ] : [],
+    initialMessages: [],
     onResponse: (response) => {
       console.log('Stream started');
       console.log(response);
@@ -106,6 +96,19 @@ export default function ChatPage() {
   }, [messages]);
 
   const messageGroups = splitMessagesByUser(messages);
+
+  useEffect(() => {
+    // Get message from localStorage
+    const message = localStorage.getItem('initial_message');
+    if (message) {
+      append({
+        role: 'user',
+        content: message,
+      });
+      // Clear the message
+      localStorage.removeItem('initial_message');
+    }
+  }, []); // Run once on mount
 
   return (
     <div className="flex h-screen">

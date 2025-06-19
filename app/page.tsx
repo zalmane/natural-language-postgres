@@ -83,14 +83,13 @@ export default function Home() {
 
   const handleSubmit = async (text: string, file?: File) => {
     if (!text.trim() && !file) return;
-    
-    // Navigate to chat page with the input text
-    router.push(`/chat?message=${encodeURIComponent(text)}`);
+    localStorage.setItem('initial_message', text);
+    router.push('/chat');
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    // Navigate to chat page with the suggested query
-    router.push(`/chat?message=${encodeURIComponent(suggestion)}`);
+    localStorage.setItem('initial_message', suggestion);
+    router.push('/chat');
   };
 
   const clearExistingData = () => {
@@ -146,7 +145,10 @@ export default function Home() {
           {quickActions.map((action) => (
             <button
               key={action.id}
-              onClick={() => router.push(`/chat?message=${encodeURIComponent(action.description)}`)}
+              onClick={() => {
+                localStorage.setItem('initial_message', action.description);
+                router.push('/chat');
+              }}
               className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all duration-200"
             >
               <div className="flex items-center space-x-4">
