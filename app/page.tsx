@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -8,20 +9,68 @@ import {
   runGenerateSQLQuery,
 } from "./actions";
 import { Config, Result } from "@/lib/types";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, Wrench, Construction } from "lucide-react";
 import { toast } from "sonner";
 import { ProjectInfo } from "@/components/project-info";
 import { Results } from "@/components/results";
 import { SuggestedQueries } from "@/components/suggested-queries";
 import { QueryViewer } from "@/components/query-viewer";
-import { Search } from "@/components/search";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Header } from "@/components/header";
+import { ChatInput } from "./components/chat-input";
+import { useRouter } from "next/navigation";
 
 interface QueryResult {
   [key: string]: any;
 }
 
-export default function Page() {
+type QuickAction = {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  link: string;
+}
+
+type SuggestedQuery = {
+  id: string;
+  text: string;
+}
+
+const quickActions: QuickAction[] = [
+  {
+    id: "explore",
+    title: "Explore",
+    description: "Understand your data landscape",
+    icon: <Search className="h-5 w-5" />,
+    link: "/explore",
+  },
+  {
+    id: "resolve",
+    title: "Resolve",
+    description: "Fix issues and optimize",
+    icon: <Wrench className="h-5 w-5" />,
+    link: "/resolve",
+  },
+  {
+    id: "build",
+    title: "Build",
+    description: "Create new solutions",
+    icon: <Construction className="h-5 w-5" />,
+    link: "/build",
+  },
+];
+
+const suggestedQueries: SuggestedQuery[] = [
+  { id: "1", text: "How do we calculate ARR?" },
+  { id: "2", text: "What is the source of our customer payment information?" },
+  { id: "3", text: "How many new reports are created weekly in each department?" },
+  { id: "4", text: "Which tables contain PII?" },
+];
+
+export default function Home() {
+  const router = useRouter();
   const [inputValue, setInputValue] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState<QueryResult[]>([]);
@@ -32,47 +81,16 @@ export default function Page() {
   const [chartConfig, setChartConfig] = useState<Config | null>(null);
   const [reasoning, setReasoning] = useState<string[]>([]);
 
-  const handleSubmit = async (suggestion?: string) => {
-    const question = suggestion ?? inputValue;
-    if (inputValue.length === 0 && !suggestion) return;
-    clearExistingData();
-    if (question.trim()) {
-      setSubmitted(true);
-    }
-    setLoading(true);
-    setLoadingStep(1);
-    setActiveQuery("");
-    setReasoning([]);
-    try {
-      const { query, reasoning: newReasoning } = await generateQuery(question);
-      setReasoning(newReasoning);
-      if (query === undefined) {
-        toast.error("An error occurred. Please try again.");
-        setLoading(false);
-        return;
-      }
-      setActiveQuery(query);
-      setLoadingStep(2);
-      const companies = await runGenerateSQLQuery(query);
-      const columns = companies.rows.length > 0 ? Object.keys(companies.rows[0]) : [];
-      setResults(companies.rows);
-      setColumns(columns);
-      setLoading(false);
-      const generation = await generateChartConfig(companies.rows, question);
-      setChartConfig(generation.config);
-    } catch (e) {
-      toast.error("An error occurred. Please try again.");
-      setLoading(false);
-    }
+  const handleSubmit = async (text: string, file?: File) => {
+    if (!text.trim() && !file) return;
+    
+    // Navigate to chat page with the input text
+    router.push(`/chat?message=${encodeURIComponent(text)}`);
   };
 
-  const handleSuggestionClick = async (suggestion: string) => {
-    setInputValue(suggestion);
-    try {
-      await handleSubmit(suggestion);
-    } catch (e) {
-      toast.error("An error occurred. Please try again.");
-    }
+  const handleSuggestionClick = (suggestion: string) => {
+    // Navigate to chat page with the suggested query
+    router.push(`/chat?message=${encodeURIComponent(suggestion)}`);
   };
 
   const clearExistingData = () => {
@@ -84,110 +102,89 @@ export default function Page() {
 
   const handleClear = () => {
     setSubmitted(false);
-    setInputValue("");
     clearExistingData();
   };
 
   return (
-    <div className="bg-neutral-50 dark:bg-neutral-900 flex items-start justify-center p-0 sm:p-8">
-      <div className="w-full max-w-4xl min-h-dvh sm:min-h-0 flex flex-col ">
-        <motion.div
-          className="bg-card rounded-xl sm:border sm:border-border flex-grow flex flex-col"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        >
-          <div className="p-6 sm:p-8 flex flex-col flex-grow">
-            <Header handleClear={handleClear} />
-            <Search
-              handleClear={handleClear}
-              handleSubmit={handleSubmit}
-              inputValue={inputValue}
-              setInputValue={setInputValue}
-              submitted={submitted}
-            />
-            <div
-              id="main-container"
-              className="flex-grow flex flex-col sm:min-h-[420px]"
-            >
-              <div className="flex-grow h-full">
-                <AnimatePresence mode="wait">
-                  {!submitted ? (
-                    <SuggestedQueries
-                      handleSuggestionClick={handleSuggestionClick}
-                    />
-                  ) : (
-                    <motion.div
-                      key="results"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      layout
-                      className="sm:h-full min-h-[400px] flex flex-col relative"
-                    >
-                      {loading ? (
-                        <div className="h-full absolute inset-0 bg-background/50 w-full flex flex-col items-center justify-center space-y-4">
-                          <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
-                          <p className="text-foreground">
-                            {loadingStep === 1
-                              ? "Generating SQL query..."
-                              : "Running SQL query..."}
-                          </p>
-                          {reasoning.length > 0 && (
-                            <div className="mt-4 max-w-2xl w-full">
-                              <div className="bg-muted rounded-lg p-4 space-y-2">
-                                {reasoning.map((step, index) => (
-                                  <p key={index} className="text-sm text-muted-foreground">
-                                    {step}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          {reasoning.length > 0 && (
-                            <div className="mb-4">
-                              <div className="bg-muted rounded-lg p-4 space-y-2">
-                                <h3 className="text-sm font-medium text-foreground mb-2">Reasoning Process:</h3>
-                                {reasoning.map((step, index) => (
-                                  <p key={index} className="text-sm text-muted-foreground">
-                                    {step}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {activeQuery.length > 0 && (
-                            <QueryViewer
-                              activeQuery={activeQuery}
-                              inputValue={inputValue}
-                            />
-                          )}
-                          {results.length === 0 ? (
-                            <div className="flex-grow flex items-center justify-center">
-                              <p className="text-center text-muted-foreground">
-                                No results found.
-                              </p>
-                            </div>
-                          ) : (
-                            <Results
-                              results={results}
-                              chartConfig={chartConfig}
-                              columns={columns}
-                            />
-                          )}
-                        </>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center">
+            {/* Logo */}
+            <div className="mb-8">
+              <div className="inline-flex items-center justify-center p-2">
+                <div className="relative w-12 h-12">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 rounded-lg transform rotate-45"></div>
+                    <div className="absolute w-2 h-2 bg-white rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+                  </div>
+                </div>
               </div>
             </div>
+            
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Reason With Your Data
+            </h1>
+            <p className="text-xl text-gray-600 mb-8">
+              Welcome back, Sarah! What puzzle can we solve today?
+            </p>
+
+            {/* Chat Input */}
+            <ChatInput
+              onSubmit={handleSubmit}
+              onClear={handleClear}
+              isLoading={loading}
+            />
           </div>
-          <ProjectInfo />
-        </motion.div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {quickActions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => router.push(`/chat?message=${encodeURIComponent(action.description)}`)}
+              className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all duration-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    {action.icon}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {action.title}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Suggested Queries */}
+        <div className="mt-12">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Popular Questions
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {suggestedQueries.map((query) => (
+              <button
+                key={query.id}
+                onClick={() => handleSuggestionClick(query.text)}
+                className="text-left p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-sm transition-all duration-200"
+              >
+                <p className="text-gray-700">{query.text}</p>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

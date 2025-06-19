@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import Sidebar from "./Sidebar";
 import { MessageGroup } from "./components/MessageGroup";
 import { ChatInput } from "./components/ChatInput";
+import { useSearchParams } from "next/navigation";
 
 function splitMessagesByUser(messages: Message[]) {
   const groups: Message[][] = [];
@@ -25,13 +26,22 @@ function splitMessagesByUser(messages: Message[]) {
 }
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
   const [expandedReasonings, setExpandedReasonings] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [clickedButton, setClickedButton] = useState<string | null>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: "/api/chat",
+    initialMessages: searchParams.get('message') ? [
+      {
+        id: Date.now().toString(),
+        content: searchParams.get('message') || '',
+        role: 'user' as const,
+        createdAt: new Date()
+      }
+    ] : [],
     onResponse: (response) => {
       console.log('Stream started');
       console.log(response);
