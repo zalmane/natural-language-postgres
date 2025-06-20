@@ -91,6 +91,7 @@ export async function POST(req: Request) {
         Do not use more than ${maxSteps} tool calls. 
         If you have gathered all the information you need, provide a final response. 
         If you have used all available tool calls, clearly explain to the user that you are showing intermediate results and ask the user if they would like you to continue searching for more information.
+        If you think a diagram will help, or have information about lineage, or are asked about which sources feed a table, or the impact of a change downstream or any other information which is a graph-like structure, add a diagram using the \`\`\`mermaid\`\`\` format.
         When responding, always wrap content in format markers:
         - For regular content: \`\`\`markdown ... \`\`\`
         - For diagrams: \`\`\`mermaid ... \`\`\`  

@@ -26,6 +26,7 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [expandedReasonings, setExpandedReasonings] = useState<Set<string>>(new Set());
+  const [expandedToolInvocations, setExpandedToolInvocations] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [clickedButton, setClickedButton] = useState<string | null>(null);
@@ -45,6 +46,18 @@ export default function ChatPage() {
         next.delete(messageId);
       } else {
         next.add(messageId);
+      }
+      return next;
+    });
+  };
+
+  const toggleToolInvocation = (toolCallId: string) => {
+    setExpandedToolInvocations(prev => {
+      const next = new Set(prev);
+      if (next.has(toolCallId)) {
+        next.delete(toolCallId);
+      } else {
+        next.add(toolCallId);
       }
       return next;
     });
@@ -128,6 +141,8 @@ export default function ChatPage() {
                   handleButtonClick={handleButtonClick}
                   toggleReasoning={toggleReasoning}
                   expandedReasonings={expandedReasonings}
+                  expandedToolInvocations={expandedToolInvocations}
+                  toggleToolInvocation={toggleToolInvocation}
                   lastMessageRef={lastUserMessageRef}
                   scrollContainerHeight={scrollContainerRef.current?.clientHeight}
                 />

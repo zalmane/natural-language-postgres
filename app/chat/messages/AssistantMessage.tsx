@@ -7,7 +7,7 @@ import mermaid from "mermaid";
 
 // Helper to split text into segments based on fenced code blocks
 function parseSegments(text: string) {
-  const segments: { type: string; content: string }[] = [];
+  const segments: { type: string; content: string; isComplete?: boolean; }[] = [];
   const completedBlockRegex = /```(markdown|mermaid|javascript|json|sql)\s*([\s\S]*?)```/g;
   let lastIndex = 0;
   let match;
@@ -15,9 +15,9 @@ function parseSegments(text: string) {
   while ((match = completedBlockRegex.exec(text)) !== null) {
     const precedingText = text.slice(lastIndex, match.index);
     if (precedingText.trim()) {
-      segments.push({ type: 'markdown', content: precedingText });
+      segments.push({ type: 'markdown', content: precedingText, isComplete: true });
     }
-    segments.push({ type: match[1], content: match[2].trim() });
+    segments.push({ type: match[1], content: match[2].trim(), isComplete: true });
     lastIndex = completedBlockRegex.lastIndex;
   }
 
@@ -28,11 +28,11 @@ function parseSegments(text: string) {
   if (openMatch && openMatch.index !== undefined) {
     const precedingText = remainder.slice(0, openMatch.index);
     if (precedingText.trim()) {
-      segments.push({ type: 'markdown', content: precedingText });
+      segments.push({ type: 'markdown', content: precedingText, isComplete: true });
     }
-    segments.push({ type: openMatch[1], content: openMatch[2] });
+    segments.push({ type: openMatch[1], content: openMatch[2], isComplete: false });
   } else if (remainder.trim()) {
-    segments.push({ type: 'markdown', content: remainder });
+    segments.push({ type: 'markdown', content: remainder, isComplete: true });
   }
 
   return segments;
@@ -69,6 +69,14 @@ export function AssistantMessage({ text, isLoading, children }: { text: string, 
       {segments.map((segment, i) => {
         switch (segment.type) {
             case "mermaid":
+                if (segment.isComplete === false) {
+                    return (
+                        <div key={i} className="my-2 p-4 bg-gray-50 rounded-lg flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="animate-spin">...</span>
+                            <span>Generating diagram...</span>
+                        </div>
+                    );
+                }
                 return <div key={i} ref={el => { mermaidRefs.current[i] = el; }} className="my-2" />;
             case "javascript":
             case "json":

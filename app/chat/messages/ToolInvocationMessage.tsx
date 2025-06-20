@@ -1,40 +1,72 @@
-import { Wrench } from "lucide-react";
+import { Wrench, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function formatResult(result: any) {
-    if (typeof result === 'string') {
-        try {
-            // Attempt to parse the string as JSON
-            const parsed = JSON.parse(result);
-            // If successful, stringify it back with nice formatting
-            return JSON.stringify(parsed, null, 2);
-        } catch (e) {
-            // If parsing fails, return the original string
-            return result;
-        }
+  let toFormat: any;
+
+  try {
+    // First, assume the result might be a string containing our specific nested structure
+    const outerParsed = typeof result === 'string' ? JSON.parse(result) : result;
+
+    if (
+      outerParsed &&
+      outerParsed.content &&
+      Array.isArray(outerParsed.content) &&
+      outerParsed.content.length > 0 &&
+      typeof outerParsed.content[0].text === 'string'
+    ) {
+      // If it matches, parse the inner JSON string
+      toFormat = JSON.parse(outerParsed.content[0].text);
+    } else {
+      // Otherwise, use the parsed outer object (or the original result if it wasn't a string)
+      toFormat = outerParsed;
     }
-    // If the result is not a string, stringify it directly
-    return JSON.stringify(result, null, 2);
+  } catch (e) {
+    // If any parsing fails, fall back to the original result
+    toFormat = result;
+  }
+  
+  // Finally, stringify the result for display
+  // If it's already a string at this point, it means parsing failed, so we return it as is.
+  if (typeof toFormat === 'string') {
+    return toFormat;
+  }
+  return JSON.stringify(toFormat, null, 2);
 }
 
-export function ToolInvocationMessage({ toolInvocation }: { toolInvocation: any }) {
+export function ToolInvocationMessage({
+    toolInvocation,
+    isExpanded,
+    onToggle,
+}: {
+    toolInvocation: any;
+    isExpanded: boolean;
+    onToggle: () => void;
+}) {
     const isResult = toolInvocation.result !== undefined;
     const name = toolInvocation.toolName;
     const result = toolInvocation.result;
     
     return (
-        <div className={cn(
-            "text-sm my-2 p-3 rounded-lg border",
-            isResult ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200 animate-pulse"
-        )}>
-            <div className="flex justify-between items-center">
+        <div
+            className={cn(
+                "text-sm my-2 p-3 rounded-lg border cursor-pointer",
+                isResult ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"
+            )}
+            onClick={onToggle}
+        >
+            <div className={cn("flex justify-between items-center", !isResult && "animate-pulse")}>
                 <div className="flex items-center gap-2 font-semibold">
                     <Wrench className="w-4 h-4" />
                     <span>{name}</span>
                 </div>
-                {!isResult && <span className="text-xs text-muted-foreground">Running...</span>}
+                {isResult ? (
+                    isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                ) : (
+                    <span className="text-xs text-muted-foreground">Running...</span>
+                )}
             </div>
-            {isResult && (
+            {isExpanded && isResult && (
                 <pre className="mt-2 p-2 bg-white rounded text-xs overflow-x-auto">
                     <code>{formatResult(result)}</code>
                 </pre>
