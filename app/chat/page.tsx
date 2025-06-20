@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { MessageGroup } from "./components/MessageGroup";
 import { ChatInput } from "./components/ChatInput";
 import { useSearchParams, usePathname } from "next/navigation";
+import { Sidebar } from "../components/Sidebar";
 
 function splitMessagesByUser(messages: Message[]) {
   const groups: Message[][] = [];
@@ -112,7 +113,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen">
-      {/* <Sidebar /> */}
+      <Sidebar />
       <div className="flex flex-col flex-1">
         {/* Messages */}
         <div className="flex-1 flex flex-col overflow-y-auto" ref={scrollContainerRef}>
@@ -139,8 +140,7 @@ export default function ChatPage() {
                 />
               ))}
             </div>
-            </div>
-
+          </div>
         </div>
         {/* Input */}
         <div className="border-t">
