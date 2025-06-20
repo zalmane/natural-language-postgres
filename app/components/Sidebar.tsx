@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -20,16 +21,18 @@ interface ChatHistory {
   timestamp: Date;
 }
 
-const blueprints = [
-    { id: 'bigbank', name: 'BigBank' },
-    { id: 'retailmart', name: 'RetailMartInsights' },
-    { id: 'healthcare', name: 'HealthCareLogistics' },
-    { id: 'finance', name: 'FinanceDevEnv' },
-]
+interface Project {
+  id: string;
+  name: string;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [selectedBlueprint, setSelectedBlueprint] = React.useState(blueprints[0]);
+  const [projects, setProjects] = React.useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = React.useState<Project | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  
   const [chatHistory, setChatHistory] = React.useState<ChatHistory[]>([
     {
       id: '1',
@@ -45,6 +48,29 @@ export function Sidebar() {
     },
     // Add more mock chat history as needed
   ]);
+
+  React.useEffect(() => {
+    async function fetchProjects() {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/projects');
+        if (!response.ok) {
+          throw new Error('Failed to fetch projects');
+        }
+        const data = await response.json();
+        const fetchedProjects = data.projects || [];
+        setProjects(fetchedProjects);
+        if (fetchedProjects.length > 0) {
+          setSelectedProject(fetchedProjects[0]);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'An unknown error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchProjects();
+  }, []);
 
   return (
     <div className="w-64 h-screen flex flex-col bg-white border-r">
@@ -144,17 +170,17 @@ export function Sidebar() {
         <div className="mb-4">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button className="w-full flex items-center justify-between p-2 text-sm rounded-lg border hover:bg-gray-50">
-                        <span>{selectedBlueprint.name}</span>
+                    <button className="w-full flex items-center justify-between p-2 text-sm rounded-lg border hover:bg-gray-50" disabled={isLoading || !!error}>
+                        <span>{isLoading ? "Loading..." : error ? "Error" : selectedProject?.name || "No Projects"}</span>
                         <ChevronsUpDown className="w-4 h-4 text-gray-400" />
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56">
                     <DropdownMenuLabel>Select Blueprint</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {blueprints.map(blueprint => (
-                        <DropdownMenuItem key={blueprint.id} onSelect={() => setSelectedBlueprint(blueprint)}>
-                            {blueprint.name}
+                    {projects.map(project => (
+                        <DropdownMenuItem key={project.id} onSelect={() => setSelectedProject(project)}>
+                            {project.name}
                         </DropdownMenuItem>
                     ))}
                 </DropdownMenuContent>

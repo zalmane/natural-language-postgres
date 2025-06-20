@@ -25,7 +25,11 @@ function parseSegments(text: string) {
   const openBlockRegex = /```(markdown|mermaid|javascript|json|sql)\s*([\s\S]*)/;
   const openMatch = remainder.match(openBlockRegex);
 
-  if (openMatch) {
+  if (openMatch && openMatch.index !== undefined) {
+    const precedingText = remainder.slice(0, openMatch.index);
+    if (precedingText.trim()) {
+      segments.push({ type: 'markdown', content: precedingText });
+    }
     segments.push({ type: openMatch[1], content: openMatch[2] });
   } else if (remainder.trim()) {
     segments.push({ type: 'markdown', content: remainder });
