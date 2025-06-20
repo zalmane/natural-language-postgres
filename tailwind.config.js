@@ -14,7 +14,8 @@ module.exports = {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			full: '9999px'
   		},
   		colors: {
   			background: 'hsl(var(--background))',
@@ -57,8 +58,103 @@ module.exports = {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
-  		}
+  		},
+      typography: ({ theme }) => ({
+        DEFAULT: {
+          css: {
+            code: {
+              color: '#b94a48',
+              backgroundColor: 'hsl(var(--muted))',
+              borderRadius: theme('borderRadius.lg'),
+              padding: `${theme('padding.1')} ${theme('padding.2')}`,
+              fontWeight: '500',
+              border: '1px solid hsl(var(--border))',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            },
+            'code::before': { content: '""' },
+            'code::after': { content: '""' },
+            pre: {
+              backgroundColor: theme('colors.background'),
+              border: `1px solid ${theme('colors.border')}`,
+              borderRadius: theme('borderRadius.lg'),
+              padding: theme('padding.4'),
+              position: 'relative',
+            },
+            'pre code': {
+              backgroundColor: 'transparent',
+              padding: 0,
+              color: 'inherit',
+              fontWeight: 'inherit',
+              border: 'none',
+              boxShadow: 'none',
+            },
+          },
+        },
+        sm: {
+          css: {
+            code: {
+              color: '#b94a48',
+              backgroundColor: 'hsl(var(--muted))',
+              borderRadius: theme('borderRadius.lg'),
+              padding: `${theme('padding.1')} ${theme('padding.2')}`,
+              fontWeight: '500',
+              border: '1px solid hsl(var(--border))',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            },
+            'code::before': { content: '""' },
+            'code::after': { content: '""' },
+            pre: {
+              backgroundColor: theme('colors.background'),
+              border: `1px solid ${theme('colors.border')}`,
+              borderRadius: theme('borderRadius.lg'),
+              padding: theme('padding.4'),
+              position: 'relative',
+            },
+            'pre code': {
+              backgroundColor: 'transparent',
+              padding: 0,
+              color: 'inherit',
+              fontWeight: 'inherit',
+              border: 'none',
+              boxShadow: 'none',
+            },
+          }
+        },
+        lg: {
+          css: {
+            code: {
+              color: '#b94a48',
+              backgroundColor: 'hsl(var(--muted))',
+              borderRadius: theme('borderRadius.lg'),
+              padding: `${theme('padding.1')} ${theme('padding.2')}`,
+              fontWeight: '500',
+              border: '1px solid hsl(var(--border))',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            },
+            'code::before': { content: '""' },
+            'code::after': { content: '""' },
+            pre: {
+              backgroundColor: theme('colors.background'),
+              border: `1px solid ${theme('colors.border')}`,
+              borderRadius: theme('borderRadius.lg'),
+              padding: theme('padding.4'),
+              position: 'relative',
+            },
+            'pre code': {
+              backgroundColor: 'transparent',
+              padding: 0,
+              color: 'inherit',
+              fontWeight: 'inherit',
+              border: 'none',
+              boxShadow: 'none',
+            },
+          }
+        }
+      }),
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+  ],
 }

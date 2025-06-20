@@ -1,17 +1,37 @@
-import { streamText, simulateReadableStream } from 'ai';
+import { streamText, tool, simulateReadableStream, experimental_createMCPClient, Output } from 'ai';
 import { MockLanguageModelV1 } from 'ai/test';
 import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 
+let toolsCache: Record<string, any> | null = null;
+
+async function getToolsOnce() {
+  if (toolsCache) return toolsCache;
+
+  try {
+    const client = await experimental_createMCPClient({
+      transport: {
+        type: 'sse',
+        url: 'http://localhost:8000/mcp',
+      },
+    });
+    const tools = await client.tools();
+    toolsCache = tools;
+    return tools;
+  } catch (error) {
+    console.error('Failed to fetch tools from MCP, proceeding without them:', error);
+    return {};
+  }
+}
+
 export async function POST(req: Request) {
-  const url = new URL(req.url);
   const isMock = process.env.MOCK_MODE === 'true';
-  let result;
+  const tools = await getToolsOnce() ?? {};
+
   if (isMock) {
-    result = streamText({
+    const result = await streamText({
       toolCallStreaming: true,
       tools: {
-        // server-side tool with execute function:
         getWeatherInformation: {
           description: 'show the weather in a given city to the user',
           parameters: z.object({ city: z.string().optional() }),
@@ -26,97 +46,69 @@ export async function POST(req: Request) {
       model: new MockLanguageModelV1({
         doStream: async () => ({
           stream: simulateReadableStream({
-            initialDelayInMs: 500, // Delay before the first chunk
-            chunkDelayInMs: 1400, // Delay between chunks
-                chunks: [
+            initialDelayInMs: 500,
+            chunkDelayInMs: 400,
+            chunks: [
                 { type: 'reasoning', textDelta: 'Let me break down the logic for you...' },
                 { type: 'reasoning', textDelta: 'That\'s it. I\'m done.' },
-                { type: 'tool-call-delta',toolCallId:"call-456",toolName:"getWeatherInformation",argsTextDelta:"Hello"},
-                { type: 'tool-call',toolCallId:"call-456",toolName:"getWeatherInformation",args:"{}"},
-                    { type: 'text-delta', textDelta: 'Hello ' },
-                    { type: 'text-delta', textDelta: 'second' },
-                    { type: 'text-delta', textDelta: 'third' },
-                    { type: 'text-delta', textDelta: ', ' },
+                { type: 'tool-call-delta', toolCallType: 'function', toolCallId:"call-456",toolName:"getWeatherInformation",argsTextDelta:"Hello"},
+                { type: 'tool-call', toolCallType: 'function', toolCallId:"call-456",toolName:"getWeatherInformation",args:"{}"},
+                { type: 'text-delta', textDelta: 'Hello \n' },
+                { type: 'text-delta', textDelta: '```markdown **second** ' },
+                { type: 'text-delta', textDelta: 'third `label` ```' },
+                { type: 'text-delta', textDelta: '```javascript\nconsole.log("Hello, world!");\n```' },
                 { type: 'text-delta', textDelta: `world!` },
                 { type: 'text-delta', textDelta: '```mermaid\ngraph TD\nA --> B\n```' },
-              {
-                type: 'finish',
-                finishReason: 'stop',
-                logprobs: undefined,
-                usage: { completionTokens: 10, promptTokens: 3 },
-              },
+                {
+                    type: 'finish',
+                    finishReason: 'stop',
+                    logprobs: undefined,
+                    usage: { completionTokens: 10, promptTokens: 3 },
+                },
             ],
           }),
           rawCall: { rawPrompt: null, rawSettings: {} },
         }),
       }),
       prompt: 'Hello, test!',
-      onStepFinish: (step) => {
-        console.log('Step finished:', step);
+    });
+    return result.toDataStreamResponse();
+  }
+
+  const { messages } = await req.json();
+
+  try {
+    const maxSteps = 3;
+    const result = await streamText({
+      model: anthropic('claude-3-7-sonnet-20250219'),
+      maxSteps: maxSteps*2,
+      messages,
+      tools,
+      system: `
+        You are a helpful assistant. 
+        You are given a task to help the user with their question. 
+        You can use the tools provided to you to help the user. 
+        Do not use more than ${maxSteps} tool calls. 
+        If you have gathered all the information you need, provide a final response. 
+        If you have used all available tool calls, clearly explain to the user that you are showing intermediate results and ask the user if they would like you to continue searching for more information.
+        When responding, always wrap content in format markers:
+        - For regular content: \`\`\`markdown ... \`\`\`
+        - For diagrams: \`\`\`mermaid ... \`\`\`  
+        - For code: \`\`\`javascript ... \`\`\`
+        - For data: \`\`\`json ... \`\`\`.`,
+      providerOptions: {
+          anthropic: {
+            thinking: { type: 'enabled', budgetTokens: 12000 },
+          } satisfies AnthropicProviderOptions,
       },
-    }); 
-     } else {
-        const { messages } = await req.json();
-
-        result = streamText({
-          model: anthropic('claude-3-7-sonnet-20250219'),
-          tools: {
-            // server-side tool with execute function:
-            getWeatherInformation: {
-              description: 'show the weather in a given city to the user',
-              parameters: z.object({ city: z.string() }),
-              execute: async ({}: { city: string }) => {
-                const weatherOptions = ['sunny', 'cloudy', 'rainy', 'snowy', 'windy'];
-                console.log('Executing tool call:');
-                return weatherOptions[
-                  Math.floor(Math.random() * weatherOptions.length)
-                ];
-              },
-            }
-          },
-          onStepFinish: (step) => {
-            console.log('Step finished:', step);
-          },
-              messages,
-          providerOptions: {
-            anthropic: {
-              thinking: { type: 'enabled', budgetTokens: 12000 },
-            } satisfies AnthropicProviderOptions,
-          },
-        });
-      
-    }
-
-    // let chunks = [
-    //   `0:"The user is asking"\n`,
-    //   `0:" about the weather in Berlin. I can use the \""\n`,
-    //   // `g:"getWeatherInformation\" function to show them the current weather in"\n`,
-    //   // `g:" Berlin.\n\nLet me check the required parameters for"\n`,
-    //   // `g:" this function:\n- city: This is required and should be"\n`,
-    //   // `g:" set to \"Berlin\"\n\nI have all the necessary information"\n`,
-    //   // `g:" to make this function call."\n`,
-    //   // `j:{"signature":"ErUBCkYIBBgCIkA7seStdOsRkDHNah0m6lOTEH1PLkHtWbgEC/M/66BYQw74bmNNiSPIgo8rQMx50Zv847f/ISTHezvSoNCg97jzEgzSbn8Yi+fwnOUeDfEaDKzA8yKMxC7S8I46+iIw+oVHuhmH2tYyLhoPeVfbZiP6zle9t05NkUJQlYEWEV0dEkIim8QzzgHtmJ9NnrMGKh02SIHidtP93ccQMUcxbaaQLa2XRAz1LVD7X6vQXxgC"}\n`,
-    //   `0:"I'll check the current weather in Berlin for you."\n`,
-    //   `9:{"toolCallId":"toolu_01NYmuRmF9sRqhqbRVD2mkrB","toolName":"getWeatherInformation","args":{"city":"Berlin"}}\n`,
-    //   `a:{"toolCallId":"toolu_01NYmuRmF9sRqhqbRVD2mkrB","result":"rainy"}\n`,
-    //   `e:{"finishReason":"tool-calls","usage":{"promptTokens":490,"completionTokens":146},"isContinued":false}\n`,
-    //   `d:{"finishReason":"tool-calls","usage":{"promptTokens":490,"completionTokens":146}}      \n`,
-    // ]
-    // return new Response(
-    //   simulateReadableStream({
-    //     initialDelayInMs: 1000, // Delay before the first chunk
-    //     chunkDelayInMs: 300, // Delay between chunks
-    //     chunks: chunks,
-    //   }).pipeThrough(new TextEncoderStream()),
-    //   {
-    //     status: 200,
-    //     headers: {
-    //       'X-Vercel-AI-Data-Stream': 'v1',
-    //       'Content-Type': 'text/plain; charset=utf-8',
-    //     },
-    //   },
-    // );
-  return result.toDataStreamResponse({
-    sendReasoning: true,
-  });
+    });
+    return result.toDataStreamResponse({
+        sendReasoning: true});
+  } catch (error) {
+    console.error('Error calling Anthropic:', error);
+    return new Response(JSON.stringify({ error: 'Error processing your request with Anthropic.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }

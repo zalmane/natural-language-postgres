@@ -32,14 +32,7 @@ export default function ChatPage() {
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append } = useChat({
     api: "/api/chat",
-    initialMessages: [],
-    onResponse: (response) => {
-      console.log('Stream started');
-      console.log(response);
-    },
-    onToolCall: ({ toolCall }) => {
-      console.log('Tool call chunk:', toolCall);
-    },
+    initialMessages: []
   });
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
