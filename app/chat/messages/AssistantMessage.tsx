@@ -88,7 +88,7 @@ export function AssistantMessage({ text, isLoading, children }: { text: string, 
                     : "```" + segment.type + "\n" + segment.content + "\n```";
 
                 return (
-                    <div key={i} className="prose prose-lg max-w-none relative">
+                    <div key={i} className="prose prose-sm max-w-none relative">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeHighlight]}

@@ -97,8 +97,17 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
-    if (lastUserMessageRef.current) {
-      lastUserMessageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    const container = scrollContainerRef.current;
+    if (container) {
+      const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 150; // 150px threshold
+      const lastMessage = messages[messages.length - 1];
+
+      // Only auto-scroll if the user is near the bottom or they just sent a message.
+      if (isScrolledToBottom || (lastMessage && lastMessage.role === 'user')) {
+        if (lastUserMessageRef.current) {
+          lastUserMessageRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+      }
     }
   }, [messages]);
 
