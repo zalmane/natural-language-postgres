@@ -7,6 +7,7 @@ import { MessageGroup } from "./components/MessageGroup";
 import { ChatInput } from "./components/ChatInput";
 import { useSearchParams, usePathname } from "next/navigation";
 import { Sidebar } from "../components/Sidebar";
+import { FeedbackModal } from "./components/FeedbackModal";
 
 function splitMessagesByUser(messages: Message[]) {
   const groups: Message[][] = [];
@@ -30,6 +31,15 @@ export default function ChatPage() {
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [clickedButton, setClickedButton] = useState<string | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<{
+    isOpen: boolean;
+    messageId: string;
+    type: 'up' | 'down';
+  }>({
+    isOpen: false,
+    messageId: '',
+    type: 'up'
+  });
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append } = useChat({
     api: "/api/chat",
@@ -64,23 +74,37 @@ export default function ChatPage() {
   };
 
   const handleFeedback = async (messageId: string, type: 'up' | 'down') => {
+    setFeedbackModal({
+      isOpen: true,
+      messageId,
+      type
+    });
+  };
+
+  const handleFeedbackSubmit = async (reason: string) => {
     try {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messageId, type }),
+        body: JSON.stringify({ 
+          messageId: feedbackModal.messageId, 
+          type: feedbackModal.type,
+          reason 
+        }),
       });
 
       if (response.ok) {
         setFeedback(prev => ({
           ...prev,
-          [messageId]: prev[messageId] === type ? null : type
+          [feedbackModal.messageId]: feedbackModal.type
         }));
       }
     } catch (error) {
       console.error('Failed to send feedback:', error);
+    } finally {
+      setFeedbackModal({ isOpen: false, messageId: '', type: 'up' });
     }
   };
 
@@ -171,6 +195,14 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+      
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedbackModal.isOpen}
+        onClose={() => setFeedbackModal({ isOpen: false, messageId: '', type: 'up' })}
+        onSubmit={handleFeedbackSubmit}
+        feedbackType={feedbackModal.type}
+      />
     </div>
   );
 } 
