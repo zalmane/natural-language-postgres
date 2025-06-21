@@ -19,8 +19,9 @@ export function ChatInput({ input, isLoading, handleInputChange, handleSubmit }:
         placeholder="Type your message..."
         className="flex-1"
         disabled={isLoading}
+        data-testid="chat-input"
       />
-      <Button type="submit" disabled={isLoading || !input.trim()}>
+      <Button type="submit" disabled={isLoading || !input.trim()} data-testid="send-button">
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (

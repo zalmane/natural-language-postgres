@@ -9,7 +9,7 @@ export function UserMessage({ text }: { text: string }) {
           <Avatar className="h-6 w-6 shrink-0 bg-muted">
             <AvatarFallback className="text-xs font-bold text-foreground">OE</AvatarFallback>
           </Avatar>
-          <div className="whitespace-pre-wrap">{text}</div>
+          <div className="whitespace-pre-wrap" data-testid="message-content">{text}</div>
         </div>
       </CardContent>
     </Card>

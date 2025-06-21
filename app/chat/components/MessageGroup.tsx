@@ -83,7 +83,7 @@ export const MessageGroup = React.memo(function MessageGroup({
               default:
                 return null;
             }
-          }) || <div className="whitespace-pre-wrap">{message.content}</div>}
+          }) || <div className="whitespace-pre-wrap" data-testid="message-content">{message.content}</div>}
         </div>
       </div>
     ));

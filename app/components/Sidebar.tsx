@@ -3,7 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Home, Search, Wrench, Construction, ChevronRight, Plus, ChevronsUpDown } from 'lucide-react';
+import { Home, Search, Wrench, Construction, ChevronRight, Plus, ChevronsUpDown, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -13,13 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-
-interface ChatHistory {
-  id: string;
-  title: string;
-  preview: string;
-  timestamp: Date;
-}
+import { 
+  getRecentChats, 
+  clearAllChats, 
+  type ChatSession 
+} from '@/app/lib/chat-storage';
 
 interface Project {
   id: string;
@@ -32,22 +30,41 @@ export function Sidebar() {
   const [selectedProject, setSelectedProject] = React.useState<Project | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  
-  const [chatHistory, setChatHistory] = React.useState<ChatHistory[]>([
-    {
-      id: '1',
-      title: 'Understanding ARR Calculation',
-      preview: 'How do we calculate ARR?',
-      timestamp: new Date('2024-03-10T10:00:00'),
-    },
-    {
-      id: '2',
-      title: 'Customer Payment Sources',
-      preview: 'What is the source of our customer payment information?',
-      timestamp: new Date('2024-03-09T15:30:00'),
-    },
-    // Add more mock chat history as needed
-  ]);
+  const [chatHistory, setChatHistory] = React.useState<ChatSession[]>([]);
+
+  const refreshChatHistory = React.useCallback(() => {
+    const chats = getRecentChats();
+    console.log('Refreshing chat history:', chats);
+    setChatHistory(chats);
+  }, []);
+
+  React.useEffect(() => {
+    // Load chat history from localStorage
+    refreshChatHistory();
+
+    // Listen for storage changes (when other tabs/windows update localStorage)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'recent_chats') {
+        console.log('Storage event detected, refreshing chat history');
+        refreshChatHistory();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events (for same-tab updates)
+    const handleCustomStorageChange = () => {
+      console.log('Custom storage event detected, refreshing chat history');
+      refreshChatHistory();
+    };
+
+    window.addEventListener('chatStorageChanged', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('chatStorageChanged', handleCustomStorageChange);
+    };
+  }, [refreshChatHistory]);
 
   React.useEffect(() => {
     async function fetchProjects() {
@@ -71,6 +88,27 @@ export function Sidebar() {
     }
     fetchProjects();
   }, []);
+
+  const handleClearAllChats = () => {
+    if (confirm('Are you sure you want to clear all chat history? This action cannot be undone.')) {
+      clearAllChats();
+      setChatHistory([]);
+    }
+  };
+
+  const formatTimestamp = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 168) { // 7 days
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
 
   return (
     <div className="w-64 h-screen flex flex-col bg-white border-r">
@@ -136,31 +174,60 @@ export function Sidebar() {
       <div className="flex-1 overflow-y-auto border-t">
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-medium text-gray-900">Chat History</h2>
-            <button className="p-1 hover:bg-gray-100 rounded-lg">
-              <Plus className="w-4 h-4" />
-            </button>
+            <h2 className="text-sm font-medium text-gray-900">Recent Chats</h2>
+            <div className="flex items-center space-x-1">
+              <Link
+                href="/chat"
+                className="p-1 hover:bg-gray-100 rounded-lg"
+                title="New Chat"
+                data-testid="new-chat-button"
+              >
+                <Plus className="w-4 h-4" />
+              </Link>
+              {chatHistory.length > 0 && (
+                <button 
+                  onClick={handleClearAllChats}
+                  className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600"
+                  title="Clear All Chats"
+                  data-testid="clear-chats-button"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-1">
-            {chatHistory.map((chat) => (
-              <Link
-                key={chat.id}
-                href={`/chat/${chat.id}`}
-                className="block p-2 hover:bg-gray-50 rounded-lg"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {chat.title}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {chat.preview}
-                    </p>
+            {chatHistory.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-4">
+                No recent chats
+              </p>
+            ) : (
+              chatHistory.map((chat) => (
+                <Link
+                  key={chat.id}
+                  href={`/chat?session=${chat.id}`}
+                  className="block p-2 hover:bg-gray-50 rounded-lg"
+                  data-testid="chat-item"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate" data-testid="chat-title">
+                        {chat.title}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {(chat.lastMessage && chat.lastMessage.trim()) || 'No messages yet'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end space-y-1">
+                      <span className="text-xs text-gray-400">
+                        {formatTimestamp(chat.timestamp)}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </div>

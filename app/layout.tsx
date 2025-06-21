@@ -4,10 +4,10 @@ import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
 
 export const metadata = {
-  metadataBase: new URL("https://natural-language-postgres.vercel.app"),
-  title: "Natural Language Postgres",
+  metadataBase: new URL("https://riverpool.ai"),
+  title: "RiverPool explorer",
   description:
-    "Chat with a Postgres database using natural language powered by the AI SDK by Vercel.",
+    "Talk to your metadata",
 };
 
 export default function RootLayout({
