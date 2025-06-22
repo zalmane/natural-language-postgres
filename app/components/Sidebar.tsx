@@ -34,7 +34,6 @@ export function Sidebar() {
 
   const refreshChatHistory = React.useCallback(() => {
     const chats = getRecentChats();
-    console.log('Refreshing chat history:', chats);
     setChatHistory(chats);
   }, []);
 

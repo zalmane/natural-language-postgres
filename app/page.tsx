@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { nanoid } from "nanoid";
 import {
   Search,
   Wrench,
@@ -132,13 +133,23 @@ export default function Home() {
 
   const handleSubmit = (text: string, file?: File) => {
     if (!text.trim() && !file) return;
+    
+    // Generate a unique chat ID using nanoid
+    const chatId = nanoid();
+    
+    // Store the initial message
     localStorage.setItem("initial_message", text);
-    router.push("/chat");
+    
+    // Navigate to the dynamic chat route
+    router.push(`/chat/${chatId}`);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    localStorage.setItem("initial_message", suggestion);
-    router.push("/chat");
+    // Generate a unique chat ID using nanoid
+    const chatId = nanoid();
+    
+    // Navigate to the dynamic chat route
+    router.push(`/chat/${chatId}?q=${encodeURIComponent(suggestion)}`);
   };
 
   const handleClear = () => {

@@ -113,9 +113,9 @@ export function clearAllChats(): void {
   }
 }
 
-export function createChatSession(title: string = 'New Chat'): ChatSession {
+export function createChatSession(title: string = 'New Chat', id?: string): ChatSession {
   return {
-    id: generateSessionId(),
+    id: id || generateSessionId(),
     title,
     timestamp: Date.now(),
     messageCount: 0,
