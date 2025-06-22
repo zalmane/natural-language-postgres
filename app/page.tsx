@@ -136,11 +136,8 @@ export default function Home() {
     // Generate a unique chat ID using nanoid
     const chatId = nanoid();
     
-    // Store the initial message
-    localStorage.setItem("initial_message", text);
-    
     // Navigate to the dynamic chat route
-    router.push(`/chat/${chatId}`);
+    router.push(`/chat/${chatId}?q=${encodeURIComponent(text)}`);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
