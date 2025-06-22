@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from "react";
 import { MessageGroup } from "./components/MessageGroup";
 import { ChatInput } from "./components/ChatInput";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Sidebar } from "../../components/Sidebar";
 import { FeedbackModal } from "./components/FeedbackModal";
 import {
   createChatSession,
@@ -223,9 +222,7 @@ export default function ChatPage() {
   const messageGroups = splitMessagesByUser(messages);
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 h-screen">
         {/* Messages */}
         <div className="flex-1 flex flex-col overflow-y-auto" ref={scrollContainerRef}>
           <div className="flex flex-col flex-1 w-full max-w-[min(1200px,90vw)] mx-auto px-5 lg:max-w-[1000px] 2xl:max-w-[1200px]">
@@ -266,7 +263,6 @@ export default function ChatPage() {
             />
           </div>
         </div>
-      </div>
       
       {/* Feedback Modal */}
       <FeedbackModal
@@ -275,6 +271,6 @@ export default function ChatPage() {
         onSubmit={handleFeedbackSubmit}
         feedbackType={feedbackModal.type}
       />
-    </div>
+      </div>
   );
 }

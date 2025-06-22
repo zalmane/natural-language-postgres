@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { ChatInput } from "./components/chat-input";
 import { cn } from "@/lib/utils";
-import { Sidebar } from "./components/Sidebar";
 
 type Tab = {
   id: "explore" | "resolve" | "build";
@@ -157,8 +156,6 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar />
       <main className="flex-1">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <header className="text-center mb-12">
@@ -326,6 +323,5 @@ export default function Home() {
           </div>
         </div>
       </main>
-    </div>
   );
 }

@@ -204,7 +204,7 @@ export function Sidebar() {
               chatHistory.map((chat) => (
                 <Link
                   key={chat.id}
-                  href={`/chat?session=${chat.id}`}
+                  href={`/chat/${chat.id}`}
                   className="block p-2 hover:bg-gray-50 rounded-lg"
                   data-testid="chat-item"
                 >

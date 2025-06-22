@@ -2,7 +2,7 @@ import "./globals.css";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
-
+import { Sidebar } from "./components/Sidebar";
 export const metadata = {
   metadataBase: new URL("https://riverpool.ai"),
   title: "RiverPool explorer",
@@ -19,8 +19,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${GeistMono.className} ${GeistSans.className}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <div className="flex min-h-screen bg-white">
+      <Sidebar />
           {children}
-        </ThemeProvider>
+          </div>
+          </ThemeProvider>
       </body>
     </html>
   );
