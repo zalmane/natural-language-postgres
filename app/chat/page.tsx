@@ -57,7 +57,7 @@ export default function ChatPage() {
   const lastUserMessageRef = useRef<HTMLDivElement | null>(null);
   const initialMessageSentRef = useRef<string | null>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append, stop } = useChat({
     api: "/api/chat",
     initialMessages: [],
     id: sessionKey
@@ -195,6 +195,15 @@ export default function ChatPage() {
       }
     }
   }, [messages]);
+
+  // unmount
+  useEffect(() => {
+    // This cleanup function runs when the component unmounts
+    return () => {
+      console.log("unmounting");
+      stop();
+    };
+  }, []); 
 
   const toggleReasoning = (messageId: string) => {
     setExpandedReasonings(prev => {

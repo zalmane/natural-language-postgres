@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         doStream: async () => ({
           stream: simulateReadableStream({
             initialDelayInMs: 500,
-            chunkDelayInMs: 400,
+            chunkDelayInMs: 1400,
             chunks: [
                 { type: 'reasoning', textDelta: 'Let me break down the logic for you...' },
                 { type: 'reasoning', textDelta: 'That\'s it. I\'m done.' },
