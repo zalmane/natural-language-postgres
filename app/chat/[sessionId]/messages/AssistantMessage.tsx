@@ -5,34 +5,120 @@ import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 import mermaid from "mermaid";
 
-// Helper to split text into segments based on fenced code blocks
-function parseSegments(text: string) {
-  const segments: { type: string; content: string; isComplete?: boolean; }[] = [];
-  const completedBlockRegex = /```(markdown|mermaid|javascript|json|sql)\s*([\s\S]*?)```/g;
-  let lastIndex = 0;
-  let match;
+// Helper to split text into segments based on fenced code blocks, supporting nested mermaid in markdown
+export function parseSegments(text: string) {
+  const segments: { type: string; content: string; isComplete?: boolean; }[] = []
+  if (!text.trim()) return segments
 
-  while ((match = completedBlockRegex.exec(text)) !== null) {
-    const precedingText = text.slice(lastIndex, match.index);
-    if (precedingText.trim()) {
-      segments.push({ type: 'markdown', content: precedingText, isComplete: true });
+  const lines = text.split(/\r?\n/)
+  const stack: { type: string; buffer: string[] }[] = []
+  let currentBuffer: string[] = []
+  let currentType: string = 'markdown'
+
+  function flushBuffer(type: string, isComplete = true) {
+    if (currentBuffer.length) {
+      segments.push({ type, content: currentBuffer.join('\n'), isComplete })
+      currentBuffer = []
     }
-    segments.push({ type: match[1], content: match[2].trim(), isComplete: true });
-    lastIndex = completedBlockRegex.lastIndex;
   }
 
-  const remainder = text.slice(lastIndex);
-  const openBlockRegex = /```(markdown|mermaid|javascript|json|sql)\s*([\s\S]*)/;
-  const openMatch = remainder.match(openBlockRegex);
-
-  if (openMatch && openMatch.index !== undefined) {
-    const precedingText = remainder.slice(0, openMatch.index);
-    if (precedingText.trim()) {
-      segments.push({ type: 'markdown', content: precedingText, isComplete: true });
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const codeBlockMatch = line.match(/^```(\w+)?\s*$/)
+    
+    if (codeBlockMatch) {
+      // Starting a new code block
+      const blockType = codeBlockMatch[1] || 'markdown'
+      
+      // Flush current buffer
+      flushBuffer(currentType)
+      
+      // Push current context to stack
+      stack.push({ type: currentType, buffer: currentBuffer })
+      
+      // Start new block
+      currentType = blockType
+      currentBuffer = []
+      continue
     }
-    segments.push({ type: openMatch[1], content: openMatch[2], isComplete: false });
-  } else if (remainder.trim()) {
-    segments.push({ type: 'markdown', content: remainder, isComplete: true });
+    
+    if (line.trim() === '```') {
+      // Ending a code block
+      flushBuffer(currentType)
+      
+      // Pop from stack and restore previous context
+      if (stack.length > 0) {
+        const prev = stack.pop()!
+        currentType = prev.type
+        currentBuffer = prev.buffer
+      } else {
+        currentType = 'markdown'
+        currentBuffer = []
+      }
+      continue
+    }
+    
+    currentBuffer.push(line)
+  }
+  
+  // Flush any remaining content
+  flushBuffer(currentType, false)
+
+  return segments
+}
+
+// Helper to parse nested content (like mermaid inside markdown)
+function parseNestedContent(content: string, parentType: string) {
+  const segments: { type: string; content: string; isComplete?: boolean; }[] = [];
+  
+  if (parentType === 'markdown') {
+    // For markdown content, we need to look for mermaid blocks
+    // Use a more specific regex that matches the full mermaid block
+    const mermaidRegex = /```mermaid\s*([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mermaidRegex.exec(content)) !== null) {
+      const precedingText = content.slice(lastIndex, match.index);
+      if (precedingText.trim()) {
+        segments.push({ type: 'markdown', content: precedingText, isComplete: true });
+      }
+      segments.push({ type: 'mermaid', content: match[1].trim(), isComplete: true });
+      lastIndex = mermaidRegex.lastIndex;
+    }
+
+    const remainder = content.slice(lastIndex);
+    if (remainder.trim()) {
+      segments.push({ type: 'markdown', content: remainder, isComplete: true });
+    }
+  } else {
+    // For regular text, look for all code blocks
+    const codeBlockRegex = /```(mermaid|javascript|json|sql)\s*([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const precedingText = content.slice(lastIndex, match.index);
+      if (precedingText.trim()) {
+        segments.push({ type: 'markdown', content: precedingText, isComplete: true });
+      }
+      segments.push({ type: match[1], content: match[2].trim(), isComplete: true });
+      lastIndex = codeBlockRegex.lastIndex;
+    }
+
+    const remainder = content.slice(lastIndex);
+    const openBlockRegex = /```(mermaid|javascript|json|sql)\s*([\s\S]*)/;
+    const openMatch = remainder.match(openBlockRegex);
+
+    if (openMatch && openMatch.index !== undefined) {
+      const precedingText = remainder.slice(0, openMatch.index);
+      if (precedingText.trim()) {
+        segments.push({ type: 'markdown', content: precedingText, isComplete: true });
+      }
+      segments.push({ type: openMatch[1], content: openMatch[2], isComplete: false });
+    } else if (remainder.trim()) {
+      segments.push({ type: 'markdown', content: remainder, isComplete: true });
+    }
   }
 
   return segments;
