@@ -5,6 +5,28 @@ import { z } from 'zod';
 
 let toolsCache: Record<string, any> | null = null;
 const BP_MANAGER_URL = process.env.BP_MANAGER_URL || 'http://localhost:8000';
+function wrapToolsWithProjectName(tools: any, projectName: string) {
+  const wrappedTools: Record<string, any> = {};
+  
+  for (const [toolName, tool] of Object.entries(tools)) {
+    wrappedTools[toolName] = {
+      ...(tool as any),
+      execute: async (params: any) => {
+        // Add project_name to the parameters
+        const paramsWithProject = {
+          ...params,
+          project_name: projectName
+        };
+        // Call the original execute function
+        return await (tool as any).execute(paramsWithProject);
+      }
+    };
+  }
+  
+  return wrappedTools;
+}
+
+
 async function getToolsOnce() {
   if (toolsCache) return toolsCache;
 
@@ -26,7 +48,9 @@ async function getToolsOnce() {
 
 export async function POST(req: Request) {
   const isMock = process.env.MOCK_MODE === 'true';
-  const tools = await getToolsOnce() ?? {};
+  const { messages, projectId, projectName } = await req.json();
+  const originalTools = await getToolsOnce() ?? {};
+  const tools = projectName ? wrapToolsWithProjectName(originalTools, projectName) : originalTools;
 
   if (isMock) {
     const result = await streamText({
@@ -74,8 +98,6 @@ export async function POST(req: Request) {
     });
     return result.toDataStreamResponse();
   }
-
-  const { messages } = await req.json();
 
   try {
     const maxSteps = 3;

@@ -18,6 +18,7 @@ import {
   clearAllChats, 
   type ChatSession 
 } from '@/app/lib/chat-storage';
+import { useProject } from '@/app/contexts/ProjectContext';
 
 interface Project {
   id: string;
@@ -26,8 +27,8 @@ interface Project {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { selectedProject, setSelectedProject } = useProject();
   const [projects, setProjects] = React.useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = React.useState<Project | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistory, setChatHistory] = React.useState<ChatSession[]>([]);

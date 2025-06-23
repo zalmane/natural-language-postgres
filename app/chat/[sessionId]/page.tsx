@@ -7,6 +7,7 @@ import { MessageGroup } from "./components/MessageGroup";
 import { ChatInput } from "./components/ChatInput";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import { FeedbackModal } from "./components/FeedbackModal";
+import { useProject } from "@/app/contexts/ProjectContext";
 import {
   createChatSession,
   saveChatSession,
@@ -37,6 +38,7 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  const { selectedProject } = useProject();
   
   // Get the sessionId from the dynamic route
   const sessionId = params.sessionId as string;
@@ -60,10 +62,14 @@ export default function ChatPage() {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastUserMessageRef = useRef<HTMLDivElement | null>(null);
   const initialMessageSentRef = useRef<string | null>(null);
+  
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append, stop } = useChat({
     api: "/api/chat",
     initialMessages: [],
-    id: sessionId
+    id: sessionId,
+    body: {
+      project_name: selectedProject?.name || null
+    }
   });
 
   // Initialize chat session
