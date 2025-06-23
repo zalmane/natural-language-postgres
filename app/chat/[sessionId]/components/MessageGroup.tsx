@@ -59,7 +59,33 @@ export const MessageGroup = React.memo(function MessageGroup({
                   <AssistantMessage key={index} text={part.text ?? ""} isLoading={isLoading} />
                 );
               case "reasoning": {
-                // ... (reasoning message rendering remains the same)
+                console.log("reasoning", part);
+                const messageId = message.id;
+                
+                // Create a summary from the reasoning content
+                let summary = "Processing...";
+                if (part.details && Array.isArray(part.details)) {
+                  const textDetails = part.details
+                    .filter((detail: any) => detail.type === "text")
+                    .map((detail: any) => detail.text)
+                    .join(" ");
+                  if (textDetails) {
+                    summary = textDetails.length > 100 
+                      ? textDetails.substring(0, 100) + "..." 
+                      : textDetails;
+                  }
+                }
+                
+                return (
+                  <ReasoningMessage
+                    key={index}
+                    isComplete={part.isComplete ?? true}
+                    isExpanded={expandedReasonings.has(messageId)}
+                    summary={summary}
+                    details={part.details}
+                    onToggle={() => toggleReasoning(messageId)}
+                  />
+                );
               }
               case "tool-invocation": {
                 const toolInvocation = (part as any).toolInvocation;
