@@ -44,7 +44,7 @@ export function ChatInput({ onSubmit, onClear, isLoading = false }: ChatInputPro
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask me anything about your data..."
+            placeholder="Ask me anything about your data fabric..."
             className="w-full h-12 pl-4 pr-24 text-lg rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             disabled={isLoading}
           />

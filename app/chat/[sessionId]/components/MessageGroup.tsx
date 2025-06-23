@@ -79,7 +79,7 @@ export const MessageGroup = React.memo(function MessageGroup({
                 return (
                   <ReasoningMessage
                     key={index}
-                    isComplete={part.isComplete ?? true}
+                    isComplete={index === (message.parts?.length ?? 0) - 1 ? false : true}
                     isExpanded={expandedReasonings.has(messageId)}
                     summary={summary}
                     details={part.details}
