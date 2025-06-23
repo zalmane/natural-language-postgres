@@ -68,7 +68,7 @@ export default function ChatPage() {
     initialMessages: [],
     id: sessionId,
     body: {
-      project_name: selectedProject?.name || null
+      projectName: selectedProject?.name || null
     }
   });
 

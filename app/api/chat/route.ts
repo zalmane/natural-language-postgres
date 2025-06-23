@@ -100,7 +100,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const maxSteps = 3;
+    const maxSteps = 5;
     const result = await streamText({
       model: anthropic('claude-3-7-sonnet-20250219'),
       maxSteps: maxSteps*2,

@@ -34,6 +34,13 @@ function formatResult(result: any) {
   return JSON.stringify(toFormat, null, 2);
 }
 
+function formatArgs(args: any) {
+  if (typeof args === 'string') {
+    return args;
+  }
+  return JSON.stringify(args, null, 2);
+}
+
 export function ToolInvocationMessage({
     toolInvocation,
     isExpanded,
@@ -46,6 +53,7 @@ export function ToolInvocationMessage({
     const isResult = toolInvocation.result !== undefined;
     const name = toolInvocation.toolName;
     const result = toolInvocation.result;
+    const args = toolInvocation.args;
     
     return (
         <div
@@ -67,9 +75,22 @@ export function ToolInvocationMessage({
                 )}
             </div>
             {isExpanded && isResult && (
-                <pre className="mt-2 p-2 bg-white rounded text-xs overflow-x-auto">
-                    <code>{formatResult(result)}</code>
-                </pre>
+                <div className="mt-2 space-y-2">
+                    {args && (
+                        <div>
+                            <div className="text-xs font-medium text-muted-foreground mb-1">Args:</div>
+                            <pre className="p-2 bg-white rounded text-xs overflow-x-auto">
+                                <code>{formatArgs(args)}</code>
+                            </pre>
+                        </div>
+                    )}
+                    <div>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">Results:</div>
+                        <pre className="p-2 bg-white rounded text-xs overflow-x-auto">
+                            <code>{formatResult(result)}</code>
+                        </pre>
+                    </div>
+                </div>
             )}
         </div>
     );
