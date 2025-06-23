@@ -4,7 +4,7 @@ import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 
 let toolsCache: Record<string, any> | null = null;
-
+const BP_MANAGER_URL = process.env.BP_MANAGER_URL || 'http://localhost:8000';
 async function getToolsOnce() {
   if (toolsCache) return toolsCache;
 
@@ -12,7 +12,7 @@ async function getToolsOnce() {
     const client = await experimental_createMCPClient({
       transport: {
         type: 'sse',
-        url: 'http://localhost:8000/mcp',
+        url: `${BP_MANAGER_URL}/mcp`,
       },
     });
     const tools = await client.tools();

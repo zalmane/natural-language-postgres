@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  const BP_MANAGER_URL = process.env.BP_MANAGER_URL || 'http://localhost:8000';
   try {
-    const response = await fetch('http://localhost:8000/projects', {
+
+    const response = await fetch(`${BP_MANAGER_URL}/projects`, {
       method: 'GET',
       headers: {
         'accept': 'application/json'
