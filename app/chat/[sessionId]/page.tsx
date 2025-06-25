@@ -48,7 +48,6 @@ export default function ChatPage() {
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [clickedButton, setClickedButton] = useState<string | null>(null);
-  const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{
     isOpen: boolean;
     messageId: string;
@@ -61,7 +60,7 @@ export default function ChatPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastUserMessageRef = useRef<HTMLDivElement | null>(null);
-  const initialMessageSentRef = useRef<string | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append, stop } = useChat({
     api: "/api/chat",
@@ -99,28 +98,43 @@ export default function ChatPage() {
   }, [sessionId, searchParams, router, append, setMessages]);
 
 
-  // Save messages to localStorage whenever messages change
+  // Save messages to localStorage whenever messages change (debounced)
   useEffect(() => {
     if (sessionId && messages.length > 0) {
-      saveChatMessages(sessionId, messages);
-      // Prefer the latest assistant message for preview, fallback to user message
-      const lastAssistantMessage = [...messages].reverse().find(msg => msg.role === 'assistant' && msg.content && msg.content.trim().length > 0);
-      const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user' && msg.content && msg.content.trim().length > 0);
-      const firstUserMessage = messages.find(msg => msg.role === 'user');
-      
-      const updates: Partial<ChatSession> = {
-        messageCount: messages.length,
-        lastMessage: (lastAssistantMessage?.content || lastUserMessage?.content || '').substring(0, 100),
-        timestamp: Date.now(),
-      };
-
-      // Update title from first user message if not set
-      if (firstUserMessage) {
-        updates.title = generateChatTitle(firstUserMessage.content);
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
+      
+      // Set new timeout to debounce saves during streaming
+      saveTimeoutRef.current = setTimeout(() => {
+        saveChatMessages(sessionId, messages);
+        // Prefer the latest assistant message for preview, fallback to user message
+        const lastAssistantMessage = [...messages].reverse().find(msg => msg.role === 'assistant' && msg.content && msg.content.trim().length > 0);
+        const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user' && msg.content && msg.content.trim().length > 0);
+        const firstUserMessage = messages.find(msg => msg.role === 'user');
+        
+        const updates: Partial<ChatSession> = {
+          messageCount: messages.length,
+          lastMessage: (lastAssistantMessage?.content || lastUserMessage?.content || '').substring(0, 100),
+          timestamp: Date.now(),
+        };
 
-      updateChatSession(sessionId, updates);
+        // Update title from first user message if not set
+        if (firstUserMessage) {
+          updates.title = generateChatTitle(firstUserMessage.content);
+        }
+
+        updateChatSession(sessionId, updates);
+      }, 1000); // 1 second debounce
     }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [messages, sessionId]);
 
 
@@ -154,13 +168,15 @@ export default function ChatPage() {
     };
   }, [searchParams, pathname, stop]);
   
-  const toggleReasoning = (messageId: string) => {
+  const toggleReasoning = (messageId: string, partIndex?: number) => {
     setExpandedReasonings(prev => {
       const next = new Set(prev);
-      if (next.has(messageId)) {
-        next.delete(messageId);
+      // Use a more stable identifier that includes part index if available
+      const identifier = partIndex !== undefined ? `${messageId}-part-${partIndex}` : messageId;
+      if (next.has(identifier)) {
+        next.delete(identifier);
       } else {
-        next.add(messageId);
+        next.add(identifier);
       }
       return next;
     });

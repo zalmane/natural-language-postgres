@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     const maxSteps = 5;
     const result = await streamText({
       model: anthropic('claude-3-7-sonnet-20250219'),
-      maxSteps: maxSteps*2,
+      maxSteps: maxSteps*5,
       temperature: 0.05,
       messages,
       tools,

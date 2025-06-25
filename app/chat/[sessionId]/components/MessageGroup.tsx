@@ -19,7 +19,7 @@ interface MessageGroupProps {
   handleFeedback: (messageId: string, type: 'up' | 'down') => void;
   handleCopy: (messageId: string, text: string) => void;
   handleButtonClick: (buttonId: string, callback: () => void) => void;
-  toggleReasoning: (messageId: string) => void;
+  toggleReasoning: (messageId: string, partIndex: number) => void;
   expandedReasonings: Set<string>;
   lastMessageRef?: React.RefObject<HTMLDivElement | null>;
   scrollContainerHeight?: number;
@@ -61,6 +61,7 @@ export const MessageGroup = React.memo(function MessageGroup({
               case "reasoning": {
                 console.log("reasoning", part);
                 const messageId = message.id;
+                const partIndex = index;
                 
                 // Create a summary from the reasoning content
                 let summary = "Processing...";
@@ -76,14 +77,17 @@ export const MessageGroup = React.memo(function MessageGroup({
                   }
                 }
                 
+                // Use a more stable identifier for expanded state
+                const identifier = `${messageId}-part-${partIndex}`;
+                
                 return (
                   <ReasoningMessage
                     key={index}
-                    isComplete={index === (message.parts?.length ?? 0) - 1 ? false : true}
-                    isExpanded={expandedReasonings.has(messageId)}
+                    isComplete={part.isComplete ?? true}
+                    isExpanded={expandedReasonings.has(identifier)}
                     summary={summary}
                     details={part.details}
-                    onToggle={() => toggleReasoning(messageId)}
+                    onToggle={() => toggleReasoning(messageId, partIndex)}
                   />
                 );
               }

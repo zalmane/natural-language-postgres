@@ -134,6 +134,13 @@ export function AssistantMessage({ text, isLoading, children }: { text: string, 
       if (segment.type === "mermaid" && mermaidRefs.current[i]) {
         try {
             mermaid.initialize({ startOnLoad: false });
+            // Validate the diagram before rendering
+            try {
+              mermaid.parse(segment.content);
+            } catch (parseErr) {
+              mermaidRefs.current[i]!.innerHTML = "<p class='text-red-500'>Invalid diagram syntax.</p>";
+              return;
+            }
             (async () => {
                 const { svg } = await mermaid.render(`mermaid-diagram-${i}-${Date.now()}`, segment.content);
                 if (mermaidRefs.current[i]) {
